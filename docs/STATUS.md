@@ -4,18 +4,23 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-10-30
-**Current phase:** Phase 1: Prompts, structured output, and tools (not started)
+**Current phase:** Phase 1: Prompts, structured output, and tools (in progress)
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
 - [x] Project structure, tooling (ruff, pytest), docs vault, resume system.
+- [x] Phase 1, step 1: tools with `@tool` (`src/jarvis/tools/basic.py`), `bind_tools`, reading raw
+      `tool_calls` (`examples/phase1_step1_tool_calls.py`). User ran it; works.
+- [x] Phase 1, step 2: the manual tool round trip, `ToolMessage` + `tool_call_id`
+      (`examples/phase1_step2_tool_roundtrip.py`).
 
 ## Next step
-Start Phase 1. First topic: what a tool call really is.
-1. Explain the tool-calling round trip (model asks, our code runs, result goes back).
-2. Write `get_time`, `get_system_info`, `calculator` with `@tool` in `src/jarvis/tools/`.
-3. In `examples/phase1_tool_calls.py`: bind the tools, print the raw `tool_calls`, run a tool by hand,
-   send back a `ToolMessage`, print the final answer.
+Continue Phase 1:
+1. Prompts: `SystemMessage` and `ChatPromptTemplate`. Fixes the "no joke tool" quirk seen in step 1.
+2. Structured output: `with_structured_output` with a Pydantic model (extract data, not run actions).
+3. Add a `get_system_info` tool; handle tool errors (return the error text to the model).
+4. Write the Phase 1 note (`docs/phases/phase-01-tools.md`) and concept notes (`tool-calling`,
+   `structured-output`, `prompt-templates`). User edits them in their own words. Then start Phase 2.
 
 ## Open questions
 - None yet.
