@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Local data (checkpoints, audit log, logs) and secrets
+.data/
+.env
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+
+# Obsidian: keep shared settings, ignore per-machine UI state
+docs/.obsidian/workspace*.json
+docs/.obsidian/cache

@@ -1,0 +1,38 @@
+[project]
+name = "jarvis"
+version = "0.1.0"
+description = "A local voice assistant that performs everyday PC tasks, built to learn LangChain and LangGraph."
+readme = "README.md"
+authors = [
+    { name = "Malhar1404", email = "malhar@hexacoder.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=1.4.7",
+    "langchain-ollama>=1.1.0",
+    "langgraph>=1.2.18",
+]
+
+[project.scripts]
+jarvis = "jarvis:main"
+
+[build-system]
+requires = ["uv_build>=0.10.6,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "examples"]
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
