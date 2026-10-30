@@ -10,5 +10,10 @@
 ```python
 ```
 
+## Alternatives
+| Option | Good for | Why we did not pick it |
+|---|---|---|
+| | | |
+
 ## Related
 - [[other-concept]]

@@ -11,5 +11,11 @@ LLMs have no memory. "Memory" is just the list we resend each turn.
 - `AIMessage`: what the model replied. Can carry `tool_calls` (Phase 1).
 - `ToolMessage`: the result of running a tool, sent back to the model (Phase 1).
 
+## Alternatives
+| Option | Good for | Why we did not pick it |
+|---|---|---|
+| Plain dicts `{"role": "user", "content": "..."}` | Quick scripts, OpenAI-style APIs | LangChain accepts them too, but typed messages are safer for tool calls |
+| Anthropic / OpenAI native message formats | Using those SDKs directly | LangChain converts to them for us |
+
 ## Related
 - [[chat-model]]

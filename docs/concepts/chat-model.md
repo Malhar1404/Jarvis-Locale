@@ -19,6 +19,14 @@ llm = ChatOllama(model="qwen3:4b", temperature=0)
 llm.invoke("hi").content
 ```
 
+## Alternatives
+| Option | Good for | Why we did not pick it |
+|---|---|---|
+| `ollama` Python SDK directly | Simplest, fewest layers | No tools/graph ecosystem; we want to learn LangChain |
+| LiteLLM | One API for 100+ providers | Just a model router, not an agent toolkit |
+| OpenAI-compatible server (LM Studio, llama.cpp, vLLM) | Other local runtimes | Ollama is easiest on Windows; LangChain can talk to them later |
+| Other frameworks: LlamaIndex, PydanticAI, Haystack | RAG-heavy or type-safe agents | LangGraph gives the best control for the agent loop and approvals |
+
 ## Related
 - [[messages]]
 - [[streaming]]
