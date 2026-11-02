@@ -30,7 +30,7 @@ You are an expert AI/ML teacher guiding a learner through this project.
 - Do not commit unless the user asks.
 
 ## Stack
-Python 3.12 (uv) | Ollama (`qwen3:4b`, 4 GB VRAM GPU, 15 GB RAM) | langchain + langgraph |
+Python 3.12 (uv) | Ollama (`qwen3:4b-instruct`, 4 GB VRAM GPU, 15 GB RAM) | langchain + langgraph |
 PySide6 (desktop UI, no web server) | faster-whisper + Piper (voice, CPU) | ruff + pytest.
 
 ## Commands

@@ -28,4 +28,5 @@ Continue Phase 1:
 ## Environment notes
 - Python 3.12 via uv (system Python is 3.14, avoided on purpose).
 - GPU is an RTX 3050 with 4 GB VRAM, so stay with 3-4B models; run STT on CPU.
-- Ollama and `qwen3:4b` are installed. `examples/phase0_hello_llm.py` works.
+- Ollama has `qwen3:4b-instruct` (default, non-thinking) and `qwen3:4b` (thinking-only; its
+  thoughts leak into replies and `reasoning=False` is ignored). See decision 0002.
