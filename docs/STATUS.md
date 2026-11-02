@@ -4,7 +4,7 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-10-30
-**Current phase:** Phase 1: Prompts, structured output, and tools (in progress)
+**Current phase:** Phase 1 code is done; user is editing the Phase 1 notes. Then start Phase 2.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -14,13 +14,17 @@
 - [x] Phase 1, step 2: the manual tool round trip, `ToolMessage` + `tool_call_id`
       (`examples/phase1_step2_tool_roundtrip.py`).
 
+- [x] Phase 1, steps 3-5: system prompts and templates, structured output, `get_system_info`,
+      `run_tool` (errors as text), `make_llm`, switch to `qwen3:4b-instruct`.
+- [x] Phase 1 notes drafted: `docs/phases/phase-01-tools.md` plus concepts `tool-calling`,
+      `prompt-templates`, `structured-output`, `reasoning-models`.
+
 ## Next step
-Continue Phase 1:
-1. Prompts: `SystemMessage` and `ChatPromptTemplate`. Fixes the "no joke tool" quirk seen in step 1.
-2. Structured output: `with_structured_output` with a Pydantic model (extract data, not run actions).
-3. Add a `get_system_info` tool; handle tool errors (return the error text to the model).
-4. Write the Phase 1 note (`docs/phases/phase-01-tools.md`) and concept notes (`tool-calling`,
-   `structured-output`, `prompt-templates`). User edits them in their own words. Then start Phase 2.
+1. User reads and rewrites the "my own words" section of `phase-01-tools.md` and lists questions;
+   Claude answers them. Then commit the notes.
+2. Start Phase 2: the agent loop in LangGraph. First topic: state and nodes (`StateGraph`,
+   `add_messages` reducer). Build `llm_node -> tools -> llm_node -> END` by hand, using `make_llm`
+   and `run_tool`, then a streaming CLI chat in `src/jarvis/cli.py`.
 
 ## Open questions
 - None yet.

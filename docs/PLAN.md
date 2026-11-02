@@ -31,7 +31,7 @@ docs/         Obsidian vault: STATUS.md, PLAN.md, phases/, concepts/, decisions/
 - Built: uv project on Python 3.12, Ollama + `qwen3:4b`, `hello_llm.py`.
 - Learned: chat models, message types (System/Human/AI), `invoke` vs `stream`.
 
-## Phase 1: Prompts, structured output, and tools
+## Phase 1: Prompts, structured output, and tools  (done)
 Concepts: prompt templates, `with_structured_output` (Pydantic), the `@tool` decorator, tool schemas,
 `bind_tools`, what a `tool_call` actually is (the model asks, it does not run anything).
 Build: 2-3 harmless tools (`get_time`, `get_system_info`, `calculator`). Call the model with tools bound,
@@ -92,7 +92,7 @@ Done when: "open my usual project folder" works after a restart.
 (The live status and next step are in [[STATUS]].)
 
 - [x] Phase 0
-- [ ] Phase 1
+- [x] Phase 1
 - [ ] Phase 2
 - [ ] Phase 3
 - [ ] Phase 4
