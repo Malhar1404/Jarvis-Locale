@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tool Calling Flow</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1f2328; --muted: #6b7280; --border: #dfe3e8;
+    --you: #2563eb; --code: #0d9488; --model: #9333ea; --tool: #ea580c;
+    --edge: #cfd5dc; --soft: #f1f5f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161a; --panel: #1d2026; --text: #e7e9ec; --muted: #9aa1aa; --border: #2f343c;
+      --you: #60a5fa; --code: #2dd4bf; --model: #c084fc; --tool: #fb923c;
+      --edge: #3a4049; --soft: #252a31;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --panel: #1d2026; --text: #e7e9ec; --muted: #9aa1aa; --border: #2f343c;
+    --you: #60a5fa; --code: #2dd4bf; --model: #c084fc; --tool: #fb923c;
+    --edge: #3a4049; --soft: #252a31;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1150px; margin: 0 auto; padding: 20px 16px 32px; }
+  h1 { font-size: 20px; margin: 0 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+  code, pre { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+
+  .layout { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .stage { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 8px; }
+  svg { width: 100%; height: auto; display: block; }
+
+  .node rect { fill: var(--panel); stroke-width: 2.5; transition: filter .3s; }
+  .node .title { font-weight: 700; font-size: 17px; fill: var(--text); }
+  .node .small { font-size: 12.5px; fill: var(--muted); }
+  .node.pulse rect { animation: pulse .7s ease-out; }
+  @keyframes pulse {
+    0% { stroke-width: 2.5; } 40% { stroke-width: 7; } 100% { stroke-width: 2.5; }
+  }
+  .edge { fill: none; stroke: var(--edge); stroke-width: 2; stroke-dasharray: 5 6; }
+  .edge.active { stroke-width: 3.5; stroke-dasharray: none; }
+
+  .packet rect { stroke-width: 2; }
+  .packet text { font: 600 13px ui-monospace, Consolas, monospace; fill: #fff; }
+
+  .side { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .stepnum { font-size: 13px; color: var(--muted); }
+  .side h2 { font-size: 19px; margin: 2px 0 8px; }
+  .side p { margin: 0 0 14px; }
+  .label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 5px; }
+  .box {
+    background: var(--soft); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px;
+    font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word;
+  }
+  .chips { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .chip {
+    border: 1px solid var(--border); border-left: 4px solid var(--muted); border-radius: 7px;
+    padding: 4px 9px; font-size: 13.5px; transition: background .3s;
+  }
+  .chip.new { background: var(--soft); font-weight: 600; }
+  .chip.new::after { content: "  ← new"; color: var(--muted); font-weight: 400; }
+  .empty { color: var(--muted); font-style: italic; font-size: 13.5px; }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  button {
+    font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  }
+  button.primary { background: var(--code); border-color: var(--code); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .4; cursor: default; }
+  .dots { display: flex; gap: 6px; margin-top: 12px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--edge); cursor: pointer; border: 0; padding: 0; }
+  .dot.on { background: var(--code); }
+</style>
+</head>
+<body>
+<main>
+  <h1>How a tool call works</h1>
+  <p class="sub">Example: <code>"What is 123456 times 654321?"</code>. Press <b>Next</b> (or →) and watch the packet move.</p>
+
+  <div class="layout">
+    <div>
+      <div class="stage">
+        <svg id="svg" viewBox="0 0 720 470" role="img" aria-label="Animated tool calling flow chart">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"></path>
+            </marker>
+          </defs>
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <g id="packet" class="packet" opacity="0">
+            <rect id="packet-bg" rx="7" height="28"></rect>
+            <text id="packet-text" y="5" text-anchor="middle"></text>
+          </g>
+        </svg>
+      </div>
+      <div class="controls">
+        <button id="prev">← Back</button>
+        <button id="next" class="primary">Next →</button>
+        <button id="replay">↻ Replay this step</button>
+        <button id="auto">▶ Auto play</button>
+      </div>
+      <div class="dots" id="dots"></div>
+    </div>
+
+    <aside class="side">
+      <div class="stepnum" id="stepnum"></div>
+      <h2 id="title"></h2>
+      <p id="text"></p>
+      <div class="label">The packet carries</div>
+      <div class="box" id="carry"></div>
+      <div class="label">Python line</div>
+      <div class="box" id="code"></div>
+      <div class="label">The messages list now</div>
+      <div class="chips" id="msgs"></div>
+    </aside>
+  </div>
+</main>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+const NODES = {
+  you:   { x: 120, y: 85,  title: 'You',        small: 'ask a question',          color: '--you' },
+  code:  { x: 360, y: 245, title: 'Our Python code', small: 'holds the messages list', color: '--code' },
+  model: { x: 600, y: 85,  title: 'The model',  small: 'only reads & writes text', color: '--model' },
+  tool:  { x: 360, y: 405, title: 'multiply()', small: 'a normal Python function', color: '--tool' },
+};
+const W = 190, H = 70;
+
+const MSG = {
+  H:  { text: 'Human: "What is 123456 times 654321?"', color: '--you' },
+  A1: { text: 'AI: tool_call → multiply(123456, 654321)', color: '--model' },
+  T:  { text: 'Tool: 80779853376', color: '--tool' },
+  A2: { text: 'AI: "123456 times 654321 is 80,779,853,376."', color: '--model' },
+};
+
+const STEPS = [
+  { from: 'you', to: 'code', packet: 'question', color: '--you',
+    title: 'You ask a question',
+    text: 'Your question goes to our Python code. Our code puts it in a list called messages. This list is the whole conversation.',
+    carry: '"What is 123456 times 654321?"',
+    code: 'messages = [HumanMessage(question)]',
+    msgs: ['H'] },
+  { from: 'code', to: 'model', packet: 'messages + tools', color: '--code',
+    title: 'Our code sends the list to the model',
+    text: 'The model gets the list, plus the names of the tools it is allowed to ask for. Nothing is calculated yet.',
+    carry: '1 message: the question\ntools: get_time, multiply',
+    code: 'ai_message = llm.invoke(messages)',
+    msgs: ['H'] },
+  { from: 'model', to: 'code', packet: 'tool_call', color: '--model',
+    title: 'The model asks for a tool',
+    text: 'The model cannot run code. It only writes a request: "please run multiply with these numbers". We save this reply in the list.',
+    carry: '{ "name": "multiply",\n  "args": { "a": 123456, "b": 654321 } }',
+    code: 'messages.append(ai_message)',
+    msgs: ['H', 'A1'] },
+  { from: 'code', to: 'tool', packet: 'a, b', color: '--code',
+    title: 'OUR code runs the tool',
+    text: 'Our code finds the function named "multiply" and calls it. This is where the real work happens. The model is not involved.',
+    carry: 'a = 123456\nb = 654321',
+    code: 'result = tool.invoke(call["args"])',
+    msgs: ['H', 'A1'] },
+  { from: 'tool', to: 'code', packet: '80779853376', color: '--tool',
+    title: 'The tool returns the result',
+    text: 'Plain Python gives the number back to our code. The model still knows nothing about it.',
+    carry: '80779853376',
+    code: 'result = tool.invoke(call["args"])  # → 80779853376',
+    msgs: ['H', 'A1'] },
+  { from: 'code', to: 'model', packet: 'messages (3)', color: '--code',
+    title: 'The result goes back inside the list',
+    text: 'Our code wraps the result in a ToolMessage, adds it to the list, and sends the WHOLE list again. This is the only way the result reaches the model.',
+    carry: '1. the question\n2. the tool request\n3. the result: 80779853376',
+    code: 'messages.append(ToolMessage(str(result), tool_call_id=...))\nfinal = llm.invoke(messages)',
+    msgs: ['H', 'A1', 'T'] },
+  { from: 'model', to: 'code', packet: 'answer', color: '--model',
+    title: 'The model answers in words',
+    text: 'The model reads the result like normal text and writes the answer. It asks for no more tools, so the work is done.',
+    carry: '"123456 times 654321 is 80,779,853,376."',
+    code: 'messages.append(final)   # final.tool_calls is empty',
+    msgs: ['H', 'A1', 'T', 'A2'] },
+  { from: 'code', to: 'you', packet: 'answer', color: '--code',
+    title: 'You get the answer',
+    text: 'Done. In Phase 2, LangGraph will repeat the model ↔ tool part automatically until the model stops asking for tools.',
+    carry: '"123456 times 654321 is 80,779,853,376."',
+    code: 'print(final.content)',
+    msgs: ['H', 'A1', 'T', 'A2'] },
+];
+
+const svgEl = (tag, attrs = {}) => {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+};
+
+// Point on the border of a node's box, in the direction of another point.
+function border(n, tx, ty) {
+  const dx = tx - n.x, dy = ty - n.y;
+  const t = Math.min((W / 2) / Math.abs(dx || 1e-6), (H / 2) / Math.abs(dy || 1e-6));
+  return [n.x + dx * t, n.y + dy * t];
+}
+
+// A curved path from node a to node b. a→b and b→a bend to opposite sides, so they never overlap.
+function edgePath(a, b) {
+  const A = NODES[a], B = NODES[b];
+  const len = Math.hypot(B.x - A.x, B.y - A.y);
+  const px = -(B.y - A.y) / len, py = (B.x - A.x) / len; // perpendicular
+  const off = 12;
+  const [sx, sy] = border(A, B.x, B.y);
+  const [ex, ey] = border(B, A.x, A.y);
+  const cx = (sx + ex) / 2 + px * 45, cy = (sy + ey) / 2 + py * 45;
+  return `M${sx + px * off},${sy + py * off} Q${cx},${cy} ${ex + px * off},${ey + py * off}`;
+}
+
+const edges = {};
+const edgeLayer = document.getElementById('edges');
+STEPS.forEach(({ from, to }) => {
+  const key = from + '>' + to;
+  if (edges[key]) return;
+  const p = svgEl('path', { d: edgePath(from, to), class: 'edge' });
+  edgeLayer.appendChild(p);
+  edges[key] = p;
+});
+
+const nodeEls = {};
+const nodeLayer = document.getElementById('nodes');
+for (const [id, n] of Object.entries(NODES)) {
+  const g = svgEl('g', { class: 'node' });
+  const r = svgEl('rect', { x: n.x - W / 2, y: n.y - H / 2, width: W, height: H, rx: 14 });
+  r.style.stroke = `var(${n.color})`;
+  const t = svgEl('text', { x: n.x, y: n.y - 4, 'text-anchor': 'middle', class: 'title' });
+  t.textContent = n.title;
+  const s = svgEl('text', { x: n.x, y: n.y + 17, 'text-anchor': 'middle', class: 'small' });
+  s.textContent = n.small;
+  g.append(r, t, s);
+  nodeLayer.appendChild(g);
+  nodeEls[id] = { g, small: s, base: n.small };
+}
+
+const packet = document.getElementById('packet');
+const packetBg = document.getElementById('packet-bg');
+const packetText = document.getElementById('packet-text');
+
+let i = 0, anim = null, autoTimer = null, autoOn = false;
+const $ = (id) => document.getElementById(id);
+
+function animate(step) {
+  cancelAnimationFrame(anim);
+  const path = edges[step.from + '>' + step.to];
+  const total = path.getTotalLength();
+  const color = css(step.color);
+
+  packetText.textContent = step.packet;
+  const w = Math.max(70, packetText.getComputedTextLength() + 24);
+  packetBg.setAttribute('width', w);
+  packetBg.setAttribute('x', -w / 2);
+  packetBg.setAttribute('y', -14);
+  packetBg.style.fill = color;
+  packetBg.style.stroke = color;
+  packet.setAttribute('opacity', 1);
+
+  const start = performance.now(), dur = 1500;
+  const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  const frame = (now) => {
+    const t = Math.min(1, (now - start) / dur);
+    const pt = path.getPointAtLength(ease(t) * total);
+    packet.setAttribute('transform', `translate(${pt.x},${pt.y})`);
+    if (t < 1) { anim = requestAnimationFrame(frame); return; }
+    const g = nodeEls[step.to].g;
+    g.classList.remove('pulse'); void g.getBBox(); g.classList.add('pulse');
+    if (autoOn) autoTimer = setTimeout(() => go(i + 1), 2200);
+  };
+  anim = requestAnimationFrame(frame);
+}
+
+function render() {
+  const s = STEPS[i];
+  clearTimeout(autoTimer);
+
+  Object.values(edges).forEach((p) => {
+    p.classList.remove('active'); p.style.stroke = ''; p.removeAttribute('marker-end');
+  });
+  const active = edges[s.from + '>' + s.to];
+  active.classList.add('active');
+  active.style.stroke = css(s.color);
+  active.setAttribute('marker-end', 'url(#arrow)');
+
+  for (const [id, el] of Object.entries(nodeEls)) {
+    const on = id === s.from || id === s.to;
+    el.g.style.opacity = on ? 1 : 0.4;
+    el.small.textContent = id === 'code' ? `messages: ${s.msgs.length} item${s.msgs.length > 1 ? 's' : ''}` : el.base;
+  }
+
+  $('stepnum').textContent = `Step ${i + 1} of ${STEPS.length}`;
+  $('title').textContent = s.title;
+  $('text').textContent = s.text;
+  $('carry').textContent = s.carry;
+  $('code').textContent = s.code;
+
+  const prev = i > 0 ? STEPS[i - 1].msgs.length : 0;
+  const box = $('msgs');
+  box.replaceChildren();
+  s.msgs.forEach((k, idx) => {
+    const c = document.createElement('div');
+    c.className = 'chip' + (idx >= prev ? ' new' : '');
+    c.style.borderLeftColor = css(MSG[k].color);
+    c.textContent = `${idx + 1}. ${MSG[k].text}`;
+    box.appendChild(c);
+  });
+
+  $('prev').disabled = i === 0;
+  $('next').disabled = i === STEPS.length - 1;
+  [...$('dots').children].forEach((d, idx) => d.classList.toggle('on', idx === i));
+  animate(s);
+}
+
+function go(n) {
+  if (n < 0 || n >= STEPS.length) { setAuto(false); return; }
+  i = n; render();
+}
+function setAuto(on) {
+  autoOn = on;
+  $('auto').textContent = on ? '⏸ Pause' : '▶ Auto play';
+  if (!on) clearTimeout(autoTimer);
+}
+
+STEPS.forEach((_, idx) => {
+  const d = document.createElement('button');
+  d.className = 'dot'; d.title = `Step ${idx + 1}`; d.setAttribute('aria-label', `Step ${idx + 1}`);
+  d.onclick = () => go(idx);
+  $('dots').appendChild(d);
+});
+$('prev').onclick = () => go(i - 1);
+$('next').onclick = () => go(i + 1);
+$('replay').onclick = () => render();
+$('auto').onclick = () => {
+  if (autoOn) { setAuto(false); return; }
+  setAuto(true);
+  go(i === STEPS.length - 1 ? 0 : i + 1);
+};
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') go(i + 1);
+  if (e.key === 'ArrowLeft') go(i - 1);
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+
+render();
+</script>
+</body>
+</html>

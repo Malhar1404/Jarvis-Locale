@@ -9,6 +9,8 @@ is the safe bridge: the model *asks*, our code *decides and acts*. That gap is w
 **Example:** a waiter writes your order, the kitchen cooks, the waiter brings the food. The waiter never cooks.
 
 ## How it works
+Interactive walkthrough: open `docs/visuals/tool-calling-flow.html` in a browser.
+
 ```
 1. We send:    question + list of tools (name, description, argument schema)
 2. Model says: AIMessage with tool_calls=[{name, args, id}]    (content is often empty)
