@@ -36,7 +36,9 @@ PySide6 (desktop UI, no web server) | faster-whisper + Piper (voice, CPU) | ruff
 ## Commands
 - `uv sync`: install deps
 - `uv run python examples/<script>.py`: run a learning example
-- `uv run jarvis`: run the app (CLI for now)
+- `uv run python -m jarvis`: run the app (CLI for now). Prefer this over `uv run jarvis` -
+  the generated `jarvis.exe` console-script shim can be blocked by Windows Application Control
+  (unsigned new executable); `python -m jarvis` runs the same code through the trusted interpreter.
 - `uv run pytest`: tests
 - `uv run ruff check . && uv run ruff format .`: lint and format
 

@@ -34,3 +34,5 @@
 - GPU is an RTX 3050 with 4 GB VRAM, so stay with 3-4B models; run STT on CPU.
 - Ollama has `qwen3:4b-instruct` (default, non-thinking) and `qwen3:4b` (thinking-only; its
   thoughts leak into replies and `reasoning=False` is ignored). See decision 0002.
+- `uv run jarvis` can be blocked by Windows Application Control (unsigned generated exe shim).
+  Use `uv run python -m jarvis` instead - same code, trusted launcher.
