@@ -1,12 +1,12 @@
-"""Terminal front-end: a real streaming chat loop over the Phase 2 agent graph.
+"""Terminal front-end: renders the Agent's AgentEvent stream as a timeline.
 
-No checkpointer yet (that's Phase 8) - `history` is a plain Python list we grow ourselves,
-and we resend the whole thing every turn, same principle as Phase 1's messages list.
+This file knows nothing about LangGraph - no node names, no stream modes, no raw messages.
+That's the point of Phase 3: swap this module for the future Qt UI and nothing in jarvis.agent
+has to change.
 """
 
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-
-from jarvis.agent.graph import build_graph
+from jarvis.agent.events import Error, Thinking, Token, ToolCall, ToolResult
+from jarvis.agent.runner import Agent
 from jarvis.tools.basic import divide, get_system_info, get_time, multiply
 
 SYSTEM_PROMPT = (
@@ -16,10 +16,9 @@ SYSTEM_PROMPT = (
 
 
 def run() -> None:
-    graph = build_graph([get_time, multiply, divide, get_system_info])
-    history: list[BaseMessage] = [SystemMessage(SYSTEM_PROMPT)]
+    agent = Agent(tools=[get_time, multiply, divide, get_system_info], system_prompt=SYSTEM_PROMPT)
 
-    print("Jarvis (Phase 2 CLI) - type 'exit' to quit.\n")
+    print("Jarvis (Phase 3 CLI) - type 'exit' to quit.\n")
     while True:
         try:
             user_text = input("You: ").strip()
@@ -32,22 +31,17 @@ def run() -> None:
             print("Bye.")
             return
 
-        history.append(HumanMessage(user_text))
         print("Jarvis:", end="", flush=True)
-
-        stream = graph.stream({"messages": history}, stream_mode=["updates", "messages"])
-        for mode, payload in stream:
-            if mode == "messages":
-                chunk, metadata = payload
-                if metadata.get("langgraph_node") == "chatbot" and chunk.content:
-                    print(chunk.content, end="", flush=True)
-            else:  # mode == "updates": a node just finished - grow OUR history to match
-                for node_name, change in payload.items():
-                    for msg in change["messages"]:
-                        history.append(msg)
-                        if node_name == "chatbot" and getattr(msg, "tool_calls", None):
-                            names = ", ".join(c["name"] for c in msg.tool_calls)
-                            print(f"\n  [asking for: {names}]", end="")
-                        elif node_name == "tools":
-                            print(f"\n  [tool -> {str(msg.content)[:80]}]", end="")
+        for event in agent.run(user_text):
+            match event:
+                case Thinking():
+                    pass  # a Qt UI could show a spinner per node here
+                case Token(text=text):
+                    print(text, end="", flush=True)
+                case ToolCall(name=name, args=args):
+                    print(f"\n  [asking for: {name}({args})]", end="")
+                case ToolResult(name=name, content=content, status=status):
+                    print(f"\n  [{status}: {name} -> {content[:80]}]", end="")
+                case Error(message=message):
+                    print(f"\n  [ERROR: {message}]", end="")
         print("\n")
