@@ -1,6 +1,12 @@
-"""The approval gate: decides whether a requested tool call may run, asking the user via
-interrupt() when its risk tier demands it. CLAUDE.md: "Permissions are enforced in Python
+"""The approval gate: decides whether requested tool calls may run, asking the user via
+interrupt() when their risk tier demands it. CLAUDE.md: "Permissions are enforced in Python
 (safety/), never only in the prompt" - this is that enforcement point.
+
+IMPORTANT ordering rule: a node that calls interrupt() reruns from the top on resume (see
+docs/phases/phase-04-safety.md). If call A ran before call B paused the node, A would run AGAIN
+on replay - a real duplicate action, not just a duplicate print. So we resolve every approval
+first (decide() only ever calls interrupt(), never run_tool()), and only run tools in a second
+pass that starts once nothing can pause anymore.
 """
 
 from langchain_core.messages import ToolMessage
@@ -11,13 +17,13 @@ from jarvis.safety.tiers import RiskTier, get_risk_tier
 from jarvis.tools.runner import run_tool
 
 
-def run_tool_with_approval(
+def decide(
     call: dict, tools_by_name: dict[str, BaseTool], approved_once: set[str]
-) -> tuple[ToolMessage, set[str]]:
-    """Run one tool call, pausing for approval first if its tier requires it.
+) -> tuple[bool, ToolMessage | None, set[str]]:
+    """Resolve whether one call may run. The only place interrupt() is called - never runs
+    the tool itself, so it is always safe to replay.
 
-    Returns the ToolMessage to send back to the model, and the (possibly updated) set of
-    ask_once tools approved so far this conversation.
+    Returns (allowed, denial_message_or_None, updated approved_once).
     """
     name = call["name"]
     tool = tools_by_name.get(name)
@@ -26,18 +32,32 @@ def run_tool_with_approval(
     if tier is RiskTier.NEVER:
         text = f"Denied: '{name}' is risk tier 'never' and can never run."
         msg = ToolMessage(content=text, tool_call_id=call["id"], name=name, status="error")
-        return msg, approved_once
+        return False, msg, approved_once
 
     is_new_ask_once = tier is RiskTier.ASK_ONCE and name not in approved_once
     needs_ask = tier is RiskTier.ALWAYS_ASK or is_new_ask_once
     if needs_ask:
-        decision = interrupt({"name": name, "args": call["args"], "tier": tier.value})
-        if decision != "yes":
+        response = interrupt({"name": name, "args": call["args"], "tier": tier.value})
+        if response != "yes":
             text = f"The user denied running '{name}'."
-            return ToolMessage(
-                content=text, tool_call_id=call["id"], name=name, status="error"
-            ), approved_once
+            msg = ToolMessage(content=text, tool_call_id=call["id"], name=name, status="error")
+            return False, msg, approved_once
         if tier is RiskTier.ASK_ONCE:
             approved_once = approved_once | {name}
 
-    return run_tool(call, tools_by_name), approved_once
+    return True, None, approved_once
+
+
+def run_tool_calls_with_approval(
+    calls: list[dict], tools_by_name: dict[str, BaseTool], approved_once: set[str]
+) -> tuple[list[ToolMessage], set[str]]:
+    """Run a whole batch of tool calls, resolving ALL approvals before running ANY tool."""
+    decisions = []
+    for call in calls:
+        allowed, denial, approved_once = decide(call, tools_by_name, approved_once)
+        decisions.append((call, allowed, denial))
+
+    results = []
+    for call, allowed, denial in decisions:
+        results.append(denial if not allowed else run_tool(call, tools_by_name))
+    return results, approved_once

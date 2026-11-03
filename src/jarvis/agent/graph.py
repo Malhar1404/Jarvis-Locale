@@ -11,7 +11,7 @@ from langgraph.graph import END, START, StateGraph
 
 from jarvis.agent.state import AgentState
 from jarvis.llm import make_llm
-from jarvis.safety.approval import run_tool_with_approval
+from jarvis.safety.approval import run_tool_calls_with_approval
 
 
 def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None = None):
@@ -30,10 +30,7 @@ def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None 
     def run_tools(state: AgentState) -> dict:
         last: BaseMessage = state["messages"][-1]
         approved = set(state.get("approved_once", set()))
-        results = []
-        for call in last.tool_calls:
-            result, approved = run_tool_with_approval(call, tools_by_name, approved)
-            results.append(result)
+        results, approved = run_tool_calls_with_approval(last.tool_calls, tools_by_name, approved)
         return {"messages": results, "approved_once": approved}
 
     def has_tool_calls(state: AgentState) -> str:

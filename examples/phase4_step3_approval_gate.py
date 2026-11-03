@@ -14,14 +14,17 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from jarvis.safety.approval import run_tool_with_approval
+from jarvis.safety.approval import run_tool_calls_with_approval
 from jarvis.safety.tiers import RiskTier, risk_tier
+
+CALL_COUNTS: dict[str, int] = {}
 
 
 @risk_tier(RiskTier.AUTO)
 @tool
 def get_time() -> str:
     """Fake auto tool: nothing to approve."""
+    CALL_COUNTS["get_time"] = CALL_COUNTS.get("get_time", 0) + 1
     return "12:00"
 
 
@@ -57,11 +60,8 @@ class State(TypedDict):
 
 def run_tools(state: State) -> dict:
     approved = set(state.get("approved_once", set()))
-    results = []
-    for call in state["calls"]:
-        result, approved = run_tool_with_approval(call, TOOLS_BY_NAME, approved)
-        results.append(result.content)
-    return {"results": results, "approved_once": approved}
+    messages, approved = run_tool_calls_with_approval(state["calls"], TOOLS_BY_NAME, approved)
+    return {"results": [m.content for m in messages], "approved_once": approved}
 
 
 builder = StateGraph(State)
@@ -118,3 +118,13 @@ demo(
     "t5",
     decisions=[],
 )
+
+CALL_COUNTS.clear()  # isolate this demo's count from the earlier "AUTO - never pauses" call
+demo(
+    "AUTO call before an ALWAYS_ASK call in the same turn - must run exactly once",
+    [call("get_time"), call("send_email", to="a@b.com", body="hi")],
+    "t6",
+    decisions=["yes"],
+)
+print(f"  get_time actually ran {CALL_COUNTS.get('get_time', 0)} time(s) (must be 1, not 2)")
+assert CALL_COUNTS.get("get_time", 0) == 1, "the replay-duplicate-execution bug is back!"
