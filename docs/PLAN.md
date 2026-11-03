@@ -38,7 +38,7 @@ Build: 2-3 harmless tools (`get_time`, `get_system_info`, `calculator`). Call th
 print the raw `tool_calls`, execute the tool by hand, send back a `ToolMessage`, get the final answer.
 Done when: you can explain the full tool-calling round trip without a framework hiding it.
 
-## Phase 2: The agent loop in LangGraph
+## Phase 2: The agent loop in LangGraph  (done)
 Concepts: `StateGraph`, state and reducers (`add_messages`), nodes, edges, conditional edges, `ToolNode`,
 the ReAct loop, streaming modes (`updates`, `messages`). Then compare with the prebuilt `create_agent`.
 Build: the loop by hand (`llm_node -> tools -> llm_node -> END`), a CLI chat with streaming.
@@ -112,7 +112,7 @@ tools, and sometimes think before answering.
 
 - [x] Phase 0
 - [x] Phase 1
-- [ ] Phase 2
+- [x] Phase 2
 - [ ] Phase 3
 - [ ] Phase 4
 - [ ] Phase 5

@@ -62,3 +62,4 @@ did work #3
 ## Related
 - [[tool-calling]]
 - [[messages]] (the `add_messages` reducer is one example; `log` here uses `operator.add` instead)
+- [[multi-agent-systems]] (a conditional edge with 3+ destinations instead of 2)
