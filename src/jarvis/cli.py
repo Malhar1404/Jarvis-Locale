@@ -2,11 +2,25 @@
 
 This file knows nothing about LangGraph - no node names, no stream modes, no raw messages.
 That's the point of Phase 3: swap this module for the future Qt UI and nothing in jarvis.agent
-has to change.
+has to change. Phase 4 adds one more thing a UI must handle: ApprovalRequest pauses the agent
+until something calls Agent.resume("yes"/"no").
 """
 
-from jarvis.agent.events import Error, Thinking, Token, ToolCall, ToolResult
+from collections.abc import Iterator
+
+from langchain_core.tools import tool
+
+from jarvis.agent.events import (
+    AgentEvent,
+    ApprovalRequest,
+    Error,
+    Thinking,
+    Token,
+    ToolCall,
+    ToolResult,
+)
 from jarvis.agent.runner import Agent
+from jarvis.safety.tiers import RiskTier, risk_tier
 from jarvis.tools.basic import divide, get_system_info, get_time, multiply
 
 SYSTEM_PROMPT = (
@@ -15,10 +29,39 @@ SYSTEM_PROMPT = (
 )
 
 
-def run() -> None:
-    agent = Agent(tools=[get_time, multiply, divide, get_system_info], system_prompt=SYSTEM_PROMPT)
+@risk_tier(RiskTier.ASK_ONCE)
+@tool
+def open_app(name: str) -> str:
+    """Pretend to open an application by name. Phase 4 demo tool for the approval flow -
+    real OS tools with proper risk tiers arrive in Phase 5.
+    """
+    return f"(pretend) opened {name}"
 
-    print("Jarvis (Phase 3 CLI) - type 'exit' to quit.\n")
+
+def render(events: Iterator[AgentEvent]) -> ApprovalRequest | None:
+    """Print each event as it arrives. Returns the ApprovalRequest if the agent paused on one."""
+    for event in events:
+        match event:
+            case Thinking():
+                pass  # a Qt UI could show a spinner per node here
+            case Token(text=text):
+                print(text, end="", flush=True)
+            case ToolCall(name=name, args=args):
+                print(f"\n  [asking for: {name}({args})]", end="")
+            case ToolResult(name=name, content=content, status=status):
+                print(f"\n  [{status}: {name} -> {content[:80]}]", end="")
+            case Error(message=message):
+                print(f"\n  [ERROR: {message}]", end="")
+            case ApprovalRequest():
+                return event
+    return None
+
+
+def run() -> None:
+    tools = [get_time, multiply, divide, get_system_info, open_app]
+    agent = Agent(tools=tools, system_prompt=SYSTEM_PROMPT)
+
+    print("Jarvis (Phase 4 CLI) - type 'exit' to quit.\n")
     while True:
         try:
             user_text = input("You: ").strip()
@@ -32,16 +75,11 @@ def run() -> None:
             return
 
         print("Jarvis:", end="", flush=True)
-        for event in agent.run(user_text):
-            match event:
-                case Thinking():
-                    pass  # a Qt UI could show a spinner per node here
-                case Token(text=text):
-                    print(text, end="", flush=True)
-                case ToolCall(name=name, args=args):
-                    print(f"\n  [asking for: {name}({args})]", end="")
-                case ToolResult(name=name, content=content, status=status):
-                    print(f"\n  [{status}: {name} -> {content[:80]}]", end="")
-                case Error(message=message):
-                    print(f"\n  [ERROR: {message}]", end="")
+        events = agent.run(user_text)
+        pending = render(events)
+        while pending is not None:
+            print(f"\n  [APPROVAL NEEDED] {pending.name}({pending.args}) - tier={pending.tier}")
+            answer = input("  Approve? [y/N]: ").strip().lower()
+            decision = "yes" if answer == "y" else "no"
+            pending = render(agent.resume(decision))
         print("\n")

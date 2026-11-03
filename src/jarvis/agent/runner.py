@@ -1,13 +1,24 @@
-"""The agent's public API. A UI calls `Agent.run(text)` and gets back `AgentEvent`s - it never
-touches LangGraph's stream, nodes, or message types directly.
+"""The agent's public API. A UI calls `Agent.run(text)` / `Agent.resume(decision)` and gets back
+`AgentEvent`s - it never touches LangGraph's stream, nodes, checkpointer, or message types.
 """
 
+import uuid
 from collections.abc import Iterator
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
 
-from jarvis.agent.events import AgentEvent, Error, Thinking, Token, ToolCall, ToolResult
+from jarvis.agent.events import (
+    AgentEvent,
+    ApprovalRequest,
+    Error,
+    Thinking,
+    Token,
+    ToolCall,
+    ToolResult,
+)
 from jarvis.agent.graph import build_graph
 
 
@@ -15,17 +26,27 @@ class Agent:
     """Owns one compiled graph plus the growing message history for one conversation."""
 
     def __init__(self, tools: list[BaseTool], system_prompt: str) -> None:
-        self._graph = build_graph(tools)
+        self._graph = build_graph(tools, checkpointer=InMemorySaver())
         self.history: list[BaseMessage] = [SystemMessage(system_prompt)]
+        self._config = {"configurable": {"thread_id": str(uuid.uuid4())}}
 
     def run(self, text: str) -> Iterator[AgentEvent]:
-        """Send one user message through the graph, yielding events as they happen."""
-        self.history.append(HumanMessage(text))
-        announced_nodes: set[str] = set()
+        """Send one new user message through the graph, yielding events as they happen.
 
+        May stop at an ApprovalRequest - the graph is then paused; call resume() to continue it.
+        """
+        self.history.append(HumanMessage(text))
+        yield from self._drive({"messages": self.history})
+
+    def resume(self, decision: str) -> Iterator[AgentEvent]:
+        """Continue a graph paused on an ApprovalRequest. decision is "yes" or "no"."""
+        yield from self._drive(Command(resume=decision))
+
+    def _drive(self, graph_input: dict | Command) -> Iterator[AgentEvent]:
+        announced_nodes: set[str] = set()
         try:
             stream = self._graph.stream(
-                {"messages": self.history}, stream_mode=["updates", "messages"]
+                graph_input, config=self._config, stream_mode=["updates", "messages"]
             )
             for mode, payload in stream:
                 if mode == "messages":
@@ -36,7 +57,11 @@ class Agent:
                         yield Thinking(node=node)
                     if node == "chatbot" and chunk.content:
                         yield Token(text=chunk.content)
-                else:  # mode == "updates": a node just finished - grow history, emit its events
+                elif "__interrupt__" in payload:
+                    data = payload["__interrupt__"][0].value
+                    yield ApprovalRequest(**data)
+                    return  # graph is paused - stop until resume() is called
+                else:  # a node just finished - grow history, emit its events
                     for node_name, change in payload.items():
                         for msg in change["messages"]:
                             self.history.append(msg)

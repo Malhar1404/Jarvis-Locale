@@ -45,5 +45,15 @@ class Error(BaseModel):
     message: str
 
 
-# ApprovalRequest joins this union in Phase 4, once there is something to approve.
-AgentEvent = Thinking | Token | ToolCall | ToolResult | Error
+class ApprovalRequest(BaseModel):
+    """A tool call is paused (see jarvis.safety.approval) - the graph will not continue until
+    something calls Agent.resume("yes"/"no") with the user's decision.
+    """
+
+    type: Literal["approval_request"] = "approval_request"
+    name: str
+    args: dict
+    tier: str
+
+
+AgentEvent = Thinking | Token | ToolCall | ToolResult | Error | ApprovalRequest
