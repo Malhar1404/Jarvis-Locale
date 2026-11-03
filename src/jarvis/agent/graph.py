@@ -6,15 +6,20 @@ repeat as many times as a task needs instead of running exactly once.
 
 from langchain_core.messages import BaseMessage
 from langchain_core.tools import BaseTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 
 from jarvis.agent.state import AgentState
 from jarvis.llm import make_llm
-from jarvis.tools.runner import run_tool
+from jarvis.safety.approval import run_tool_with_approval
 
 
-def build_graph(tools: list[BaseTool]):
-    """Build and compile the agent graph for a given set of tools."""
+def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None = None):
+    """Build and compile the agent graph for a given set of tools.
+
+    A checkpointer is only required if any tool's risk tier can call interrupt() - see
+    jarvis.safety.approval. Examples with only `auto` tools can omit it.
+    """
     tools_by_name = {t.name: t for t in tools}
     llm = make_llm().bind_tools(tools)
 
@@ -24,8 +29,12 @@ def build_graph(tools: list[BaseTool]):
 
     def run_tools(state: AgentState) -> dict:
         last: BaseMessage = state["messages"][-1]
-        results = [run_tool(call, tools_by_name) for call in last.tool_calls]
-        return {"messages": results}
+        approved = set(state.get("approved_once", set()))
+        results = []
+        for call in last.tool_calls:
+            result, approved = run_tool_with_approval(call, tools_by_name, approved)
+            results.append(result)
+        return {"messages": results, "approved_once": approved}
 
     def has_tool_calls(state: AgentState) -> str:
         """The conditional edge: decide where to go after `chatbot` runs."""
@@ -40,4 +49,4 @@ def build_graph(tools: list[BaseTool]):
     builder.add_conditional_edges("chatbot", has_tool_calls, {"tools": "tools", "end": END})
     builder.add_edge("tools", "chatbot")  # always loop back so the model sees the result
 
-    return builder.compile()
+    return builder.compile(checkpointer=checkpointer)

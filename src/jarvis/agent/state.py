@@ -12,3 +12,6 @@ from langgraph.graph.message import add_messages
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
+    # Names of ask_once tools already approved this conversation. No reducer: the tools node
+    # always returns the full updated set ("last write wins", like any plain state field).
+    approved_once: set[str]
