@@ -15,6 +15,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
 from jarvis.safety.approval import run_tool_calls_with_approval
+from jarvis.safety.audit import AUDIT_LOG_PATH
 from jarvis.safety.tiers import RiskTier, risk_tier
 
 CALL_COUNTS: dict[str, int] = {}
@@ -128,3 +129,6 @@ demo(
 )
 print(f"  get_time actually ran {CALL_COUNTS.get('get_time', 0)} time(s) (must be 1, not 2)")
 assert CALL_COUNTS.get("get_time", 0) == 1, "the replay-duplicate-execution bug is back!"
+
+print(f"\n=== Audit log ({AUDIT_LOG_PATH}) - one line per decision above, append-only ===")
+print(AUDIT_LOG_PATH.read_text(encoding="utf-8"))
