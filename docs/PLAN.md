@@ -86,6 +86,25 @@ Done when: "open my usual project folder" works after a restart.
 - Stretch: MCP tools via `langchain-mcp-adapters`, vision (`qwen2.5-vl`) for "what is on my screen",
   planner/executor or multi-agent split, packaging as an `.exe` with PyInstaller.
 
+## Phase 10: How LLMs actually work (architecture and training)
+The capstone: Jarvis is built, now open up what was inside the box the whole time.
+Concepts: tokenization, embeddings, the transformer block (self-attention + feed-forward),
+query/key/value, multi-head attention, positional encoding, causal masking (why a model only
+sees tokens *before* the current one - this is also why it can't "go back" and edit earlier
+text), context length. Training stages: pretraining (next-token prediction on huge text),
+instruction fine-tuning, and preference tuning/RLHF - and specifically how "thinking" models
+(e.g. `qwen3-thinking`, seen in [[reasoning-models]]) are trained to produce a long reasoning
+trace before answering, versus an instruct model trained to answer directly.
+Build: a tiny hands-on demo, no real training, in the same style as
+`examples/phase2_extra_custom_node_wiring.py` - a minimal self-attention mechanism in plain
+Python/NumPy on a toy sequence, so you see the Q/K/V math and attention weights with your own
+eyes instead of only reading about them. Likely also: tokenize a real sentence and look at the
+actual tokens, tying back to the Ollama chat template we inspected in [[reasoning-models]].
+Done when: you can explain, in your own words, why a model can only ever produce text (closing
+the loop on [[tool-calling]] - "why can't the model just run the code itself"), roughly what
+attention does, and how pretraining + fine-tuning + RLHF produced a model that can chat, call
+tools, and sometimes think before answering.
+
 ---
 
 ## Progress
@@ -101,3 +120,4 @@ Done when: "open my usual project folder" works after a restart.
 - [ ] Phase 7
 - [ ] Phase 8
 - [ ] Phase 9
+- [ ] Phase 10
