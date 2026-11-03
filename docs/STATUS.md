@@ -4,7 +4,7 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-11-03
-**Current phase:** Phase 2 code is done; user is editing the Phase 2 notes. Then start Phase 3.
+**Current phase:** Phase 3 code is done; user is editing the Phase 2 and Phase 3 notes. Then start Phase 4.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -26,13 +26,19 @@
       (`src/jarvis/cli.py`, `uv run python -m jarvis`).
 - [x] Phase 2 notes drafted: `docs/phases/phase-02-agent-loop.md` plus concept
       `multi-agent-systems` (deterministic routing vs. agents-as-tools with `create_agent`).
+- [x] Phase 3, step 1: `AgentEvent` union - `Thinking`/`Token`/`ToolCall`/`ToolResult`/`Error`
+      (`src/jarvis/agent/events.py`).
+- [x] Phase 3, step 2: `Agent.run(text) -> Iterator[AgentEvent]`, translating the real stream
+      (`src/jarvis/agent/runner.py`). Fixed `ToolMessage` missing `name=` in `run_tool` along the way.
+- [x] Phase 3, step 3: rewired `cli.py` onto `Agent.run()` - no LangGraph imports left in the CLI.
+- [x] Phase 3 notes drafted: `docs/phases/phase-03-events.md` plus concept `agent-event-stream`.
 
 ## Next step
-1. User reads and rewrites the "my own words" section of `phase-02-agent-loop.md` and lists
-   questions; Claude answers them. Then commit the notes.
-2. Start Phase 3: turn the raw LangGraph stream into our own typed events (`Thinking`, `ToolCall`,
-   `ToolResult`, `Token`, `ApprovalRequest`, `Error`) and an `agent.run(text) -> Iterator[AgentEvent]`
-   API - this is what the future Qt UI will consume.
+1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` and
+   `phase-03-events.md` and lists questions; Claude answers them. Then commit the notes.
+2. Start Phase 4: safety and human-in-the-loop - checkpointers (SQLite), `interrupt()`,
+   `Command(resume=...)`, risk tiers (auto / ask once / always ask / never), an approval flow in
+   the CLI, append-only audit log. `ApprovalRequest` joins the `AgentEvent` union here.
 
 ## Open questions
 - None yet.

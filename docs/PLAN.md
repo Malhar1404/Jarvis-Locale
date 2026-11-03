@@ -44,7 +44,7 @@ the ReAct loop, streaming modes (`updates`, `messages`). Then compare with the p
 Build: the loop by hand (`llm_node -> tools -> llm_node -> END`), a CLI chat with streaming.
 Done when: you can draw the graph, and you know what `create_agent` does for you and what it hides.
 
-## Phase 3: Seeing what the agent does (events and observability)
+## Phase 3: Seeing what the agent does (events and observability)  (done)
 Concepts: turning the raw stream into our own typed events (`Thinking`, `ToolCall`, `ToolResult`,
 `Token`, `ApprovalRequest`, `Error`), logging, optional tracing (LangSmith or self-hosted Langfuse).
 Build: an `AgentEvent` model plus an `agent.run(text) -> Iterator[AgentEvent]` API; the CLI renders it as a timeline.
@@ -113,7 +113,7 @@ tools, and sometimes think before answering.
 - [x] Phase 0
 - [x] Phase 1
 - [x] Phase 2
-- [ ] Phase 3
+- [x] Phase 3
 - [ ] Phase 4
 - [ ] Phase 5
 - [ ] Phase 6
