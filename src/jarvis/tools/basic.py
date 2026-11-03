@@ -7,25 +7,31 @@ from pathlib import Path
 import psutil
 from langchain_core.tools import tool
 
+from jarvis.safety.tiers import RiskTier, risk_tier
 
+
+@risk_tier(RiskTier.AUTO)
 @tool
 def get_time() -> str:
     """Get the current local date and time."""
     return datetime.now().strftime("%A, %d %B %Y, %H:%M")
 
 
+@risk_tier(RiskTier.AUTO)
 @tool
 def multiply(a: int, b: int) -> int:
     """Multiply two whole numbers and return the result."""
     return a * b
 
 
+@risk_tier(RiskTier.AUTO)
 @tool
 def divide(a: float, b: float) -> float:
     """Divide the first number by the second number and return the result."""
     return a / b  # raises ZeroDivisionError when b is 0, on purpose: we test error handling
 
 
+@risk_tier(RiskTier.AUTO)
 @tool
 def get_system_info() -> str:
     """Get this PC's current CPU usage, memory usage, disk space and battery level."""
