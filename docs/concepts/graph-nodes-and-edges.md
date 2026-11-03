@@ -9,6 +9,8 @@ takes state and returns a dict), never about what the function does inside. That
 node be an LLM call, a tool runner, a database write, a web request — anything.
 
 ## How it works
+Interactive walkthrough: open `docs/visuals/phase2-agent-loop-flow.html` in a browser.
+
 | Piece | What it really is |
 |---|---|
 | `add_node(name, fn)` | "When something routes to `name`, call `fn`." |
