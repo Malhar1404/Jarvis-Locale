@@ -4,10 +4,9 @@ Scoped to exactly ONE spreadsheet ID (jarvis.config.TIMESHEET_SPREADSHEET_ID) - 
 arbitrary ID the model might pass in. This is the external-resource equivalent of the local
 folder allowlist: the tool itself only ever knows how to reach this one sheet.
 
-list_timesheet_tabs is ASK_ONCE: this is the agent's first tool reaching a real external account
-over the network, a new category of risk beyond local files/OS calls - worth a confirmation even
-for a read. read_timesheet_tab is ALWAYS_ASK: it exposes real row content (actual work entries),
-more sensitive than just tab names, every single time.
+All three tools are ASK_ONCE: this is the agent's first set of tools reaching a real external
+account over the network, a new category of risk beyond local files/OS calls - worth a
+confirmation once per conversation, even for reads and writes.
 """
 
 import gspread
@@ -42,7 +41,7 @@ def list_timesheet_tabs() -> str:
 MAX_PREVIEW_ROWS = 5
 
 
-@risk_tier(RiskTier.ALWAYS_ASK)
+@risk_tier(RiskTier.ASK_ONCE)
 @tool
 def read_timesheet_tab(tab_name: str) -> str:
     """Read the header row and first few entries of one tab in the user's timesheet Google Sheet."""
@@ -59,19 +58,25 @@ def read_timesheet_tab(tab_name: str) -> str:
     return "\n".join(" | ".join(row) for row in rows)
 
 
-@risk_tier(RiskTier.ALWAYS_ASK)
+@risk_tier(RiskTier.ASK_ONCE)
 @tool
 def add_timesheet_entry(date: str, task: str, project: str, hours: str) -> str:
-    """Add one piece of work to the user's daily timesheet for a given date.
+    """Add one piece of work, for one project, to the user's daily timesheet for a given date.
 
     The sheet holds ONE row per day: if an entry for this date already exists, the new
     task/project/hours are merged into that same row instead of creating a second row for the
-    same date - call this once per project worked on; multiple calls for the same date combine
-    correctly into a single row, matching the sheet's existing style.
+    same date. Call this ONCE PER PROJECT, never once per date - each project the user worked on
+    needs its own call, with that project's own task description and own hours.
+
+    Example: "worked on jarvis 3 hours and sklo 5 hours" is TWO calls, not two calls with the
+    same project repeated:
+      add_timesheet_entry(date=..., task="worked on jarvis", project="jarvis", hours="3")
+      add_timesheet_entry(date=..., task="worked on sklo", project="sklo", hours="5")
 
     date: the day this entry is for, matching the sheet's existing format (e.g. "10/31/2026").
-    task: what was worked on.
-    project: the project name for this piece of work (e.g. "sklo").
+    task: what was worked on, for THIS project only.
+    project: the project name for this piece of work (e.g. "sklo") - must differ between calls
+        for the same date unless the user genuinely means the same project twice.
     hours: hours spent on this piece of work (e.g. "3").
     """
     sheet = _open_timesheet()
