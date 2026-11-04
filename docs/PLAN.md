@@ -65,11 +65,14 @@ add/merge an entry) - the agent's first external API tool, scoped to one fixed s
 Done when: 6-8 everyday tasks work reliably with the 4B model, each with a correct risk tier. (Exceeded -
 13 tools built.) Deferred as later follow-ups: web search (untrusted content input) and shell (always gated).
 
-## Phase 6: Desktop UI (PySide6)
+## Phase 6: Desktop UI (PySide6)  (done)
 Concepts: Qt event loop, signals/slots, worker threads (`QThread`) so the UI never freezes, model/view.
-Build: main window with chat, a live activity timeline (thinking / tool call / result / waiting for approval),
-a native approval dialog, status bar (model, listening state), system tray icon. Consumes phase 3 events.
-Done when: you can run a task and watch every step happen in the UI.
+Built: main window with chat, a dark "HUD" theme, a card-based live activity timeline (thinking /
+tool call / result / inline approval with real Yes/No buttons), status bar (live state, model
+name), system tray icon (hide-to-tray), and a bonus tools sidebar highlighting the tool in use.
+Consumes phase 3 events with zero changes to `jarvis.agent`.
+Done when: you can run a task and watch every step happen in the UI. (Done - one more UI piece
+intentionally deferred to Phase 7, once voice needs it.)
 
 ## Phase 7: Voice
 Concepts: VAD, STT (`faster-whisper` on CPU), TTS (Piper), push-to-talk with a global hotkey, streaming TTS
@@ -119,7 +122,7 @@ tools, and sometimes think before answering.
 - [x] Phase 3
 - [x] Phase 4
 - [x] Phase 5
-- [ ] Phase 6
+- [x] Phase 6
 - [ ] Phase 7
 - [ ] Phase 8
 - [ ] Phase 9

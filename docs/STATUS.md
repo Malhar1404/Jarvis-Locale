@@ -4,8 +4,7 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-11-04
-**Current phase:** Phase 6 (desktop UI) - chat window with the live activity timeline and inline
-approval cards is working. User is still editing the Phase 2-5 notes separately.
+**Current phase:** Phase 6 code is done. User is editing the Phase 2-5 notes. Then start Phase 7.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -81,12 +80,15 @@ approval cards is working. User is still editing the Phase 2-5 notes separately.
       whichever one is currently running. `jarvis/setup.py` now exposes `build_tools()`
       separately from `build_agent()` so the UI can get the tool names without duplicating the
       list.
+- [x] Phase 6 notes drafted: `docs/phases/phase-06-ui.md` plus concept `qt-threading`. One more
+      UI piece is intentionally deferred until Phase 7 (voice) starts - not yet specified.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
-   `phase-05-real-tools.md`, and lists questions; Claude answers them. Then commit the notes.
-2. The user flagged one more UI piece still needed, to be added once Phase 7 (voice) starts -
-   not yet specified. Otherwise Phase 6's UI is in good shape to move on to Phase 7.
+   `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
+2. Start Phase 7: voice. VAD, `faster-whisper` STT (CPU), Piper TTS, a push-to-talk hotkey,
+   streaming TTS sentence by sentence, barge-in. Also the still-unspecified UI piece the user
+   flagged for this phase.
 
 ## Open questions
 - None yet.
