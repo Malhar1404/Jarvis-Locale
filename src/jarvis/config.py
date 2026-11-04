@@ -22,3 +22,10 @@ MODEL = os.getenv("JARVIS_MODEL", "qwen3:4b-instruct")
 #   "true" -> thoughts go to AIMessage.additional_kwargs["reasoning_content"]
 _reasoning = os.getenv("JARVIS_REASONING")
 REASONING: bool | None = None if _reasoning is None else _reasoning.lower() == "true"
+
+# Speech-to-text (faster-whisper, CPU). ".en" models are English-only and a bit faster/more
+# accurate than the multilingual ones of the same size - fine since Jarvis only needs English.
+STT_MODEL = os.getenv("JARVIS_STT_MODEL", "base.en")
+STT_DEVICE = "cpu"
+STT_COMPUTE_TYPE = "int8"  # faster-whisper's recommended quantization for CPU
+SAMPLE_RATE = 16_000  # Hz - what both Whisper and Piper expect

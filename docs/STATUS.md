@@ -4,7 +4,8 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-11-04
-**Current phase:** Phase 6 code is done. User is editing the Phase 2-5 notes. Then start Phase 7.
+**Current phase:** Phase 7 (voice), step 1 done. User is also separately editing the Phase 2-6
+notes.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -80,15 +81,23 @@
       whichever one is currently running. `jarvis/setup.py` now exposes `build_tools()`
       separately from `build_agent()` so the UI can get the tool names without duplicating the
       list.
-- [x] Phase 6 notes drafted: `docs/phases/phase-06-ui.md` plus concept `qt-threading`. One more
-      UI piece is intentionally deferred until Phase 7 (voice) starts - not yet specified.
+- [x] Phase 6 notes drafted: `docs/phases/phase-06-ui.md` plus concept `qt-threading`. The
+      deferred UI piece is now specified: a mic button, a listening/speaking visual indicator,
+      and a live transcript preview - to be built once voice itself works.
+- [x] Phase 7, step 1: speech-to-text, the raw mechanism, no hotkey/agent/UI yet
+      (`examples/phase7_step1_stt.py`) - record a fixed clip, transcribe with `faster-whisper`
+      (CPU, `base.en`). Found Whisper hallucinating extra sentences during trailing silence;
+      fixed with `vad_filter=True` (faster-whisper's built-in Silero VAD, via `onnxruntime` -
+      already a transitive dependency, no new install needed). `jarvis/config.py` gained
+      `STT_MODEL`/`STT_DEVICE`/`STT_COMPUTE_TYPE`/`SAMPLE_RATE`.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Start Phase 7: voice. VAD, `faster-whisper` STT (CPU), Piper TTS, a push-to-talk hotkey,
-   streaming TTS sentence by sentence, barge-in. Also the still-unspecified UI piece the user
-   flagged for this phase.
+2. Continue Phase 7: step 2 is TTS alone (Piper, text -> speech, played back with
+   `sounddevice`), same "mechanism first" approach as step 1. Then: push-to-talk hotkey, wiring
+   the full loop into the `Agent`, the voice UI pieces (mic button, listening/speaking
+   indicator, live transcript), streaming TTS sentence by sentence, and barge-in.
 
 ## Open questions
 - None yet.

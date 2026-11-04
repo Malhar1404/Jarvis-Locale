@@ -9,16 +9,19 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "comtypes>=1.4.17",
+    "faster-whisper>=1.2.1",
     "google-auth>=2.62.1",
     "gspread>=6.2.1",
     "langchain>=1.4.7",
     "langchain-ollama>=1.1.0",
     "langgraph>=1.2.18",
+    "numpy>=2.5.4",
     "psutil>=7.2.2",
     "pycaw>=20260927",
     "pyside6-essentials>=6.12.0",
     "pywin32>=312",
     "screen-brightness-control>=0.27.2",
+    "sounddevice>=0.5.6",
 ]
 
 [project.scripts]
