@@ -22,7 +22,7 @@ from jarvis.tools.apps import open_app
 from jarvis.tools.basic import divide, get_system_info, get_time, multiply
 from jarvis.tools.brightness import get_brightness, set_brightness
 from jarvis.tools.clipboard import get_clipboard, set_clipboard
-from jarvis.tools.files import list_files, read_file, search_files
+from jarvis.tools.files import list_files, read_file, search_files, write_file
 from jarvis.tools.volume import get_volume, set_volume
 
 SYSTEM_PROMPT = (
@@ -66,6 +66,7 @@ def run() -> None:
         list_files,
         read_file,
         search_files,
+        write_file,
     ]
     agent = Agent(tools=tools, system_prompt=SYSTEM_PROMPT)
 

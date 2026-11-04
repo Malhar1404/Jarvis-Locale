@@ -1,8 +1,10 @@
-"""List, read, and search files inside the workspace sandbox.
+"""List, read, search, and write files inside the workspace sandbox.
 
-AUTO tier for all three: every path is checked by ensure_allowed() first, so there is nothing
-beyond .data/workspace/ to protect - the folder allowlist is the actual safety boundary here,
-not the risk tier.
+list_files/read_file/search_files are AUTO: every path is checked by ensure_allowed() first, so
+there is nothing beyond .data/workspace/ to protect - the folder allowlist is the real safety
+boundary, not the risk tier. write_file is ASK_ONCE: unlike reading, it creates (or silently
+overwrites) persistent content - a real, lasting change, even though it is confined to the
+sandbox. Deleting/moving files is not built yet - that is its own, more dangerous step.
 """
 
 from langchain_core.tools import tool
@@ -48,3 +50,17 @@ def search_files(keyword: str) -> str:
         except UnicodeDecodeError:
             pass  # skip binary files
     return "\n".join(matches) if matches else f"No files matched '{keyword}'."
+
+
+@risk_tier(RiskTier.ASK_ONCE)
+@tool
+def write_file(name: str, content: str) -> str:
+    """Create a text file (e.g. a note or reminder) in Jarvis's workspace folder.
+
+    If a file with this name already exists, its content is replaced.
+    """
+    path = ensure_allowed(WORKSPACE_DIR / name)
+    existed = path.is_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    return f"{'Overwrote' if existed else 'Created'} '{name}'."

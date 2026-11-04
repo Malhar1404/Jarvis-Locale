@@ -2,7 +2,7 @@ import pytest
 
 from jarvis.safety.paths import WORKSPACE_DIR
 from jarvis.safety.tiers import RiskTier, get_risk_tier
-from jarvis.tools.files import list_files, read_file, search_files
+from jarvis.tools.files import list_files, read_file, search_files, write_file
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +21,10 @@ def test_tools_are_auto_tier():
     assert get_risk_tier(list_files) == RiskTier.AUTO
     assert get_risk_tier(read_file) == RiskTier.AUTO
     assert get_risk_tier(search_files) == RiskTier.AUTO
+
+
+def test_write_file_is_ask_once():
+    assert get_risk_tier(write_file) == RiskTier.ASK_ONCE
 
 
 def test_list_files_empty():
@@ -48,3 +52,18 @@ def test_search_files_matches_name_and_content():
     assert search_files.invoke({"keyword": "shopping"}) == "shopping.txt"
     assert search_files.invoke({"keyword": "milk"}) == "shopping.txt"
     assert "No files matched" in search_files.invoke({"keyword": "xyz"})
+
+
+def test_write_file_creates_then_overwrites():
+    result = write_file.invoke({"name": "note.txt", "content": "first draft"})
+    assert "Created" in result
+    assert read_file.invoke({"name": "note.txt"}) == "first draft"
+
+    result = write_file.invoke({"name": "note.txt", "content": "final draft"})
+    assert "Overwrote" in result
+    assert read_file.invoke({"name": "note.txt"}) == "final draft"
+
+
+def test_write_file_blocks_path_traversal():
+    with pytest.raises(ValueError, match="outside the allowed folder"):
+        write_file.invoke({"name": "../escape.txt", "content": "nope"})
