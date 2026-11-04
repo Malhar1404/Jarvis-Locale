@@ -1,11 +1,15 @@
-"""List, read, search, and write files inside the workspace sandbox.
+"""List, read, search, write, delete, and move files inside the workspace sandbox.
 
 list_files/read_file/search_files are AUTO: every path is checked by ensure_allowed() first, so
 there is nothing beyond .data/workspace/ to protect - the folder allowlist is the real safety
 boundary, not the risk tier. write_file is ASK_ONCE: unlike reading, it creates (or silently
 overwrites) persistent content - a real, lasting change, even though it is confined to the
-sandbox. Deleting/moving files is not built yet - that is its own, more dangerous step.
+sandbox. delete_file/move_file are ALWAYS_ASK - the only truly destructive operations in this
+module (a delete cannot be undone; a move/overwrite can destroy what was already there), so every
+single call needs its own confirmation, no matter how many times it has been approved before.
 """
+
+import shutil
 
 from langchain_core.tools import tool
 
@@ -64,3 +68,30 @@ def write_file(name: str, content: str) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return f"{'Overwrote' if existed else 'Created'} '{name}'."
+
+
+@risk_tier(RiskTier.ALWAYS_ASK)
+@tool
+def delete_file(name: str) -> str:
+    """Permanently delete a file from Jarvis's workspace folder. Cannot be undone."""
+    path = ensure_allowed(WORKSPACE_DIR / name)
+    if not path.is_file():
+        return f"No such file: '{name}'."
+    path.unlink()
+    return f"Deleted '{name}'."
+
+
+@risk_tier(RiskTier.ALWAYS_ASK)
+@tool
+def move_file(source: str, destination: str) -> str:
+    """Move or rename a file in Jarvis's workspace folder.
+
+    Overwrites the destination if it already exists.
+    """
+    source_path = ensure_allowed(WORKSPACE_DIR / source)
+    destination_path = ensure_allowed(WORKSPACE_DIR / destination)
+    if not source_path.is_file():
+        return f"No such file: '{source}'."
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(source_path), str(destination_path))
+    return f"Moved '{source}' to '{destination}'."

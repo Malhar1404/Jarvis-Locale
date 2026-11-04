@@ -2,7 +2,14 @@ import pytest
 
 from jarvis.safety.paths import WORKSPACE_DIR
 from jarvis.safety.tiers import RiskTier, get_risk_tier
-from jarvis.tools.files import list_files, read_file, search_files, write_file
+from jarvis.tools.files import (
+    delete_file,
+    list_files,
+    move_file,
+    read_file,
+    search_files,
+    write_file,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -67,3 +74,46 @@ def test_write_file_creates_then_overwrites():
 def test_write_file_blocks_path_traversal():
     with pytest.raises(ValueError, match="outside the allowed folder"):
         write_file.invoke({"name": "../escape.txt", "content": "nope"})
+
+
+def test_delete_and_move_are_always_ask():
+    assert get_risk_tier(delete_file) == RiskTier.ALWAYS_ASK
+    assert get_risk_tier(move_file) == RiskTier.ALWAYS_ASK
+
+
+def test_delete_file_removes_it():
+    (WORKSPACE_DIR / "note.txt").write_text("bye", encoding="utf-8")
+    result = delete_file.invoke({"name": "note.txt"})
+    assert "Deleted" in result
+    assert "No such file" in read_file.invoke({"name": "note.txt"})
+
+
+def test_delete_missing_file_returns_text_not_a_crash():
+    assert "No such file" in delete_file.invoke({"name": "ghost.txt"})
+
+
+def test_delete_file_blocks_path_traversal():
+    with pytest.raises(ValueError, match="outside the allowed folder"):
+        delete_file.invoke({"name": "../../src/jarvis/safety/tiers.py"})
+
+
+def test_move_file_renames_it():
+    (WORKSPACE_DIR / "draft.txt").write_text("hello", encoding="utf-8")
+    result = move_file.invoke({"source": "draft.txt", "destination": "final.txt"})
+    assert "Moved" in result
+    assert "No such file" in read_file.invoke({"name": "draft.txt"})
+    assert read_file.invoke({"name": "final.txt"}) == "hello"
+
+
+def test_move_missing_source_returns_text_not_a_crash():
+    assert "No such file" in move_file.invoke({"source": "ghost.txt", "destination": "new.txt"})
+
+
+def test_move_file_blocks_path_traversal_on_either_side():
+    (WORKSPACE_DIR / "draft.txt").write_text("hello", encoding="utf-8")
+    with pytest.raises(ValueError, match="outside the allowed folder"):
+        move_file.invoke({"source": "draft.txt", "destination": "../escape.txt"})
+    with pytest.raises(ValueError, match="outside the allowed folder"):
+        move_file.invoke(
+            {"source": "../../src/jarvis/safety/tiers.py", "destination": "stolen.txt"}
+        )

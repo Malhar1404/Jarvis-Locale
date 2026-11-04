@@ -22,7 +22,14 @@ from jarvis.tools.apps import open_app
 from jarvis.tools.basic import divide, get_system_info, get_time, multiply
 from jarvis.tools.brightness import get_brightness, set_brightness
 from jarvis.tools.clipboard import get_clipboard, set_clipboard
-from jarvis.tools.files import list_files, read_file, search_files, write_file
+from jarvis.tools.files import (
+    delete_file,
+    list_files,
+    move_file,
+    read_file,
+    search_files,
+    write_file,
+)
 from jarvis.tools.timesheet import add_timesheet_entry, list_timesheet_tabs, read_timesheet_tab
 from jarvis.tools.volume import get_volume, set_volume
 
@@ -68,6 +75,8 @@ def run() -> None:
         read_file,
         search_files,
         write_file,
+        delete_file,
+        move_file,
         list_timesheet_tabs,
         read_timesheet_tab,
         add_timesheet_entry,
