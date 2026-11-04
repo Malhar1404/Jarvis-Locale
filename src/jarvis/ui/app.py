@@ -10,6 +10,7 @@ from jarvis.ui.main_window import MainWindow
 
 def run() -> None:
     app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)  # closing to the tray must not end the app
     agent = build_agent()
     window = MainWindow(agent)
     window.showMaximized()

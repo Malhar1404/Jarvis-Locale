@@ -73,13 +73,15 @@ approval cards is working. User is still editing the Phase 2-5 notes separately.
       each their own widget. An `ApprovalRequest` renders as an inline card with real Yes/No
       buttons (no OS popup), and a bouncing-dots card shows while waiting on the model or a
       tool. Window opens maximized.
+- [x] Phase 6, step 4: status bar (`QMainWindow.statusBar()`) showing the live turn state on the
+      left and the model name on the right; a generated system tray icon (`src/jarvis/ui/tray.py`)
+      - closing the window now hides to the tray instead of quitting, with a Show/Hide/Quit menu.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-05-real-tools.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Continue Phase 6: status bar (model name, idle/listening state) and a system tray icon are
-   still unbuilt. Consider also: scroll/visual polish on the timeline, and eventually wiring up
-   voice (Phase 7) through the same window.
+2. Continue Phase 6: a side panel listing available tools, highlighting the one in use. After
+   that, the UI is in good shape to wire up voice (Phase 7).
 
 ## Open questions
 - None yet.

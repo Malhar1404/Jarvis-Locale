@@ -101,4 +101,20 @@ QPushButton#approvalNo:disabled {{
     color: {MUTED};
     border-color: {MUTED};
 }}
+QStatusBar {{
+    background-color: {BG};
+    border-top: 1px solid {BORDER};
+    color: {MUTED};
+    font-family: {MONO_FONT};
+    font-size: 12px;
+}}
+QStatusBar QLabel {{
+    color: {MUTED};
+    font-family: {MONO_FONT};
+    font-size: 12px;
+    padding: 2px 8px;
+}}
+QStatusBar::item {{
+    border: none;
+}}
 """

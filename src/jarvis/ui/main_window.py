@@ -7,12 +7,14 @@ widget - which is what lets an approval have real buttons and "thinking" actuall
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
+    QApplication,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
     QPushButton,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -27,6 +29,7 @@ from jarvis.agent.events import (
     ToolResult,
 )
 from jarvis.agent.runner import Agent
+from jarvis.config import MODEL
 from jarvis.ui import theme
 from jarvis.ui.cards import (
     ApprovalCard,
@@ -38,6 +41,7 @@ from jarvis.ui.cards import (
     UserCard,
 )
 from jarvis.ui.timeline import Timeline
+from jarvis.ui.tray import Tray, make_icon
 from jarvis.ui.worker import AgentWorker
 
 
@@ -62,6 +66,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Jarvis")
         self.setStyleSheet(theme.STYLESHEET)
+        self.setWindowIcon(make_icon())
+        self._quitting = False
 
         self.title_label = QLabel("J A R V I S")
         self.title_label.setObjectName("title")
@@ -69,13 +75,9 @@ class MainWindow(QMainWindow):
         title_font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 150)
         self.title_label.setFont(title_font)
 
-        self.status_label = QLabel("IDLE")
-        self.status_label.setObjectName("status")
-
         header_row = QHBoxLayout()
         header_row.addWidget(self.title_label)
         header_row.addStretch()
-        header_row.addWidget(self.status_label)
 
         self.timeline = Timeline()
         _glow(self.timeline)
@@ -102,6 +104,16 @@ class MainWindow(QMainWindow):
 
         self.send_button.clicked.connect(self._on_send)
         self.input_line.returnPressed.connect(self._on_send)
+
+        self.status_label = QLabel("IDLE")
+        self.model_label = QLabel(MODEL)
+        self.statusBar().addWidget(self.status_label)
+        self.statusBar().addPermanentWidget(self.model_label)
+
+        self.tray: Tray | None = None
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray = Tray(self)
+            self.tray.show()
 
         self._thread = QThread()
         self._worker = AgentWorker(agent)
@@ -187,7 +199,23 @@ class MainWindow(QMainWindow):
     def _set_status(self, text: str) -> None:
         self.status_label.setText(text)
 
+    def quit_app(self) -> None:
+        self._quitting = True
+        self.close()
+        QApplication.instance().quit()
+
     def closeEvent(self, event) -> None:
+        if self.tray is not None and not self._quitting:
+            event.ignore()
+            self.hide()
+            self.tray.sync_toggle_text()
+            self.tray.showMessage(
+                "Jarvis",
+                "Still running in the tray - right-click the icon to quit.",
+                QSystemTrayIcon.MessageIcon.Information,
+                3000,
+            )
+            return
         self._thread.quit()
         self._thread.wait()
         super().closeEvent(event)
