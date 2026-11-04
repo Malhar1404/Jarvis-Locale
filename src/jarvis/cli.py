@@ -8,8 +8,6 @@ until something calls Agent.resume("yes"/"no").
 
 from collections.abc import Iterator
 
-from langchain_core.tools import tool
-
 from jarvis.agent.events import (
     AgentEvent,
     ApprovalRequest,
@@ -20,22 +18,13 @@ from jarvis.agent.events import (
     ToolResult,
 )
 from jarvis.agent.runner import Agent
-from jarvis.safety.tiers import RiskTier, risk_tier
+from jarvis.tools.apps import open_app
 from jarvis.tools.basic import divide, get_system_info, get_time, multiply
 
 SYSTEM_PROMPT = (
     "You are Jarvis, a helpful assistant running locally on the user's PC. "
     "Be short and clear. Use a tool only when it is really needed."
 )
-
-
-@risk_tier(RiskTier.ASK_ONCE)
-@tool
-def open_app(name: str) -> str:
-    """Pretend to open an application by name. Phase 4 demo tool for the approval flow -
-    real OS tools with proper risk tiers arrive in Phase 5.
-    """
-    return f"(pretend) opened {name}"
 
 
 def render(events: Iterator[AgentEvent]) -> ApprovalRequest | None:
@@ -61,7 +50,7 @@ def run() -> None:
     tools = [get_time, multiply, divide, get_system_info, open_app]
     agent = Agent(tools=tools, system_prompt=SYSTEM_PROMPT)
 
-    print("Jarvis (Phase 4 CLI) - type 'exit' to quit.\n")
+    print("Jarvis (Phase 5 CLI) - type 'exit' to quit.\n")
     while True:
         try:
             user_text = input("You: ").strip()
