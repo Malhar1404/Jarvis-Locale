@@ -6,6 +6,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = Path(os.getenv("JARVIS_DATA_DIR", PROJECT_ROOT / ".data"))
 
+# Google Sheets (the timesheet tool). The key file lives in .data/ directly, NOT .data/workspace/,
+# on purpose: workspace is readable by the file tools (list_files/read_file/search_files) - a
+# credential must never sit somewhere the agent's own tools can read it.
+GOOGLE_SERVICE_ACCOUNT_PATH = DATA_DIR / "google_service_account.json"
+TIMESHEET_SPREADSHEET_ID = "1sX0qzAL9Pr4Xyx5WJDh5LiFAFSqKcpruec6KdqwDEes"
+
 # qwen3:4b-instruct never thinks: fast and safe to speak aloud.
 # (The plain qwen3:4b tag is the thinking-only variant. See docs/decisions/0002.)
 MODEL = os.getenv("JARVIS_MODEL", "qwen3:4b-instruct")
