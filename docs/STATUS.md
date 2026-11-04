@@ -97,16 +97,18 @@ notes.
 - [x] Phase 7, step 3: the full voice loop, still no UI (`examples/phase7_step3_voice_loop.py`)
       - push-to-talk (hold F9, `jarvis/config.py` `PUSH_TO_TALK_KEY`, via `pynput`) records with
       `jarvis/voice/hotkey.py`'s `Recorder`, transcribes with `jarvis/voice/stt.py`, runs it
-      through the same `Agent`/`render()` the CLI uses (so approvals still work), and speaks the
-      final reply with `jarvis/voice/tts.py`. Working, but noticeably laggy: Jarvis only starts
-      speaking after the *entire* reply has finished generating.
+      through the same `Agent` the CLI uses (so approvals still work), and speaks the reply.
+- [x] Phase 7, streaming TTS: fixed the lag from step 3 (Jarvis used to wait for the *entire*
+      reply before speaking any of it) - `jarvis/voice/tts.py`'s `SentenceSpeaker` buffers
+      streamed tokens and speaks each sentence as soon as it's complete. The voice loop now uses
+      a local `speak_and_print()` instead of `cli.render()` so it can feed tokens to the speaker.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Fix the voice loop's latency: stream TTS sentence by sentence as tokens arrive, instead of
-   waiting for the full reply - this was already on the plan as its own step. Then: the voice UI
-   pieces (mic button, listening/speaking indicator, live transcript) and barge-in.
+2. Wire voice into the Qt UI: a mic button, a listening/speaking visual indicator, and a live
+   transcript preview - the UI pieces the user flagged back in Phase 6. Then barge-in
+   (interrupting Jarvis while it's speaking).
 
 ## Open questions
 - None yet.
