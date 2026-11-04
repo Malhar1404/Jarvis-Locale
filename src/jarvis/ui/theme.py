@@ -71,6 +71,27 @@ QPushButton#sendButton:disabled {{
     color: {MUTED};
     border-color: {MUTED};
 }}
+QPushButton#micButton {{
+    background-color: transparent;
+    color: {ACCENT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 600;
+}}
+QPushButton#micButton:hover {{
+    background-color: rgba(0, 229, 255, 40);
+    border-color: {ACCENT};
+}}
+QPushButton#micButton[recording="true"] {{
+    color: {BG};
+    background-color: {ERROR};
+    border-color: {ERROR};
+}}
+QPushButton#micButton:disabled {{
+    color: {MUTED};
+    border-color: {MUTED};
+}}
 QPushButton#approvalYes {{
     background-color: transparent;
     color: {OK};

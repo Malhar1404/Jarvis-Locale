@@ -44,6 +44,7 @@ from jarvis.ui.timeline import Timeline
 from jarvis.ui.tools_panel import ToolsPanel
 from jarvis.ui.tray import Tray, make_icon
 from jarvis.ui.worker import AgentWorker
+from jarvis.voice.hotkey import Recorder
 
 
 def _glow(widget: QWidget, color: str = theme.ACCENT, radius: int = 24) -> None:
@@ -62,6 +63,7 @@ class MainWindow(QMainWindow):
     # then queues the call onto the worker's thread instead of running it here by mistake.
     send_requested = Signal(str)
     resume_requested = Signal(str)
+    transcribe_requested = Signal(object)  # a recorded numpy clip
 
     def __init__(self, agent: Agent, tool_names: list[str]) -> None:
         super().__init__()
@@ -87,11 +89,17 @@ class MainWindow(QMainWindow):
 
         self.input_line = QLineEdit(placeholderText="Ask Jarvis...", objectName="inputLine")
         _glow(self.input_line, radius=16)
+        self.mic_button = QPushButton("\U0001f3a4", objectName="micButton")
+        self.mic_button.setToolTip("Hold to talk")
         self.send_button = QPushButton("Send", objectName="sendButton")
 
         input_row = QHBoxLayout()
+        input_row.addWidget(self.mic_button)
         input_row.addWidget(self.input_line)
         input_row.addWidget(self.send_button)
+
+        self._recorder = Recorder()
+        self._recording = False
 
         chat_layout = QVBoxLayout()
         chat_layout.setSpacing(12)
@@ -114,6 +122,8 @@ class MainWindow(QMainWindow):
 
         self.send_button.clicked.connect(self._on_send)
         self.input_line.returnPressed.connect(self._on_send)
+        self.mic_button.pressed.connect(self._on_mic_press)
+        self.mic_button.released.connect(self._on_mic_release)
 
         self.status_label = QLabel("IDLE")
         self.model_label = QLabel(MODEL)
@@ -130,8 +140,10 @@ class MainWindow(QMainWindow):
         self._worker.moveToThread(self._thread)
         self._worker.event.connect(self._on_event)
         self._worker.turn_done.connect(self._on_turn_done)
+        self._worker.transcribed.connect(self._on_transcribed)
         self.send_requested.connect(self._worker.send)
         self.resume_requested.connect(self._worker.resume)
+        self.transcribe_requested.connect(self._worker.transcribe)
         self._thread.start()
 
     def _on_send(self) -> None:
@@ -145,6 +157,39 @@ class MainWindow(QMainWindow):
         self._set_busy(True)
         self._set_status("THINKING...")
         self.send_requested.emit(text)
+
+    def _on_mic_press(self) -> None:
+        if self._recording:
+            return
+        self._recording = True
+        self.mic_button.setProperty("recording", True)
+        self._repolish(self.mic_button)
+        self._set_status("LISTENING...")
+        self._recorder.start()
+
+    def _on_mic_release(self) -> None:
+        if not self._recording:
+            return
+        self._recording = False
+        self.mic_button.setProperty("recording", False)
+        self._repolish(self.mic_button)
+        self._set_status("TRANSCRIBING...")
+        audio = self._recorder.stop()
+        self.transcribe_requested.emit(audio)
+
+    def _on_transcribed(self, text: str) -> None:
+        self._set_status("IDLE")
+        if text:
+            self.input_line.setText(text)
+        self.input_line.setFocus()
+
+    @staticmethod
+    def _repolish(widget: QWidget) -> None:
+        """Qt only re-reads a stylesheet's dynamic-property selectors (like [recording="true"])
+        after this - a plain setProperty() alone doesn't repaint anything.
+        """
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
 
     def _on_event(self, event: AgentEvent) -> None:
         match event:
@@ -207,6 +252,7 @@ class MainWindow(QMainWindow):
     def _set_busy(self, busy: bool) -> None:
         self.input_line.setEnabled(not busy)
         self.send_button.setEnabled(not busy)
+        self.mic_button.setEnabled(not busy)
         if not busy:
             self.input_line.setFocus()
 

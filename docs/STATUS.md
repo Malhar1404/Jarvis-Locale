@@ -116,14 +116,21 @@ notes.
       shape - fixed with a shared "breathing" pulse plus a small spatially-coherent ripple (based
       on each point's longitude, not randomness) layered on top. Standalone demo:
       `examples/phase7_step5_orb_reactive.py`.
+- [x] Mic button wired into the main window (`src/jarvis/ui/main_window.py`): press-and-hold the
+      \U0001f3a4 button next to the input box to record (same `Recorder` the hotkey uses), release
+      to transcribe. `AgentWorker` gained a `transcribe` slot (runs faster-whisper off the GUI
+      thread) and a `transcribed` signal. The result fills the input box - it is deliberately
+      *not* auto-sent, so you can review/fix a misheard word before clicking Send yourself.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Voice orb, step 3: wire the orb + a mic button + a live transcript preview into the main
-   window's right panel (below the tools list), with idle/listening/speaking states driven by
-   the same `AudioLevel`/`Recorder`/`SentenceSpeaker` pieces already built. Then: click-to-expand
-   fullscreen, webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
+2. "Audio mode": a separate hands-free toggle (continuous listening, no button to hold per turn).
+   Needs live silence detection via `webrtcvad` (a new dependency - faster-whisper's VAD only
+   filters a finished clip, it has no frame-by-frame streaming API) to know when an utterance
+   ended, so it can auto-transcribe and auto-send without a manual Send click. Then: wire the orb
+   itself into the main window with idle/listening/speaking states, click-to-expand fullscreen,
+   webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
 
 ## Open questions
 - None yet.
