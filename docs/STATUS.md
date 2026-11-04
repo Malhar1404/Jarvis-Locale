@@ -90,14 +90,23 @@ notes.
       fixed with `vad_filter=True` (faster-whisper's built-in Silero VAD, via `onnxruntime` -
       already a transitive dependency, no new install needed). `jarvis/config.py` gained
       `STT_MODEL`/`STT_DEVICE`/`STT_COMPUTE_TYPE`/`SAMPLE_RATE`.
+- [x] Phase 7, step 2: text-to-speech, the raw mechanism (`examples/phase7_step2_tts.py`) -
+      Piper synthesizes text to audio, played back with `sounddevice`. Voice is
+      `en_US-ryan-high` (`jarvis/config.py` `TTS_VOICE`/`TTS_VOICES_DIR`), picked by the user
+      for a deeper, more "movie Jarvis" sound over the default `lessac` voice.
+- [x] Phase 7, step 3: the full voice loop, still no UI (`examples/phase7_step3_voice_loop.py`)
+      - push-to-talk (hold F9, `jarvis/config.py` `PUSH_TO_TALK_KEY`, via `pynput`) records with
+      `jarvis/voice/hotkey.py`'s `Recorder`, transcribes with `jarvis/voice/stt.py`, runs it
+      through the same `Agent`/`render()` the CLI uses (so approvals still work), and speaks the
+      final reply with `jarvis/voice/tts.py`. Working, but noticeably laggy: Jarvis only starts
+      speaking after the *entire* reply has finished generating.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Continue Phase 7: step 2 is TTS alone (Piper, text -> speech, played back with
-   `sounddevice`), same "mechanism first" approach as step 1. Then: push-to-talk hotkey, wiring
-   the full loop into the `Agent`, the voice UI pieces (mic button, listening/speaking
-   indicator, live transcript), streaming TTS sentence by sentence, and barge-in.
+2. Fix the voice loop's latency: stream TTS sentence by sentence as tokens arrive, instead of
+   waiting for the full reply - this was already on the plan as its own step. Then: the voice UI
+   pieces (mic button, listening/speaking indicator, live transcript) and barge-in.
 
 ## Open questions
 - None yet.

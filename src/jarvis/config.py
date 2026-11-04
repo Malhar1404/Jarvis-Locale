@@ -28,4 +28,12 @@ REASONING: bool | None = None if _reasoning is None else _reasoning.lower() == "
 STT_MODEL = os.getenv("JARVIS_STT_MODEL", "base.en")
 STT_DEVICE = "cpu"
 STT_COMPUTE_TYPE = "int8"  # faster-whisper's recommended quantization for CPU
-SAMPLE_RATE = 16_000  # Hz - what both Whisper and Piper expect
+SAMPLE_RATE = 16_000  # Hz - what Whisper expects on the way in
+
+# Text-to-speech (Piper, CPU). Voice models are downloaded once (per voice) into .data/voices/.
+TTS_VOICE = os.getenv("JARVIS_TTS_VOICE", "en_US-ryan-high")
+TTS_VOICES_DIR = DATA_DIR / "voices"
+
+# Hold this key to talk, release to stop recording. Must be a name pynput.keyboard.Key knows
+# (e.g. "f9", "space") - see https://pynput.readthedocs.io/en/latest/keyboard.html#pynput.keyboard.Key
+PUSH_TO_TALK_KEY = os.getenv("JARVIS_PUSH_TO_TALK_KEY", "f9")
