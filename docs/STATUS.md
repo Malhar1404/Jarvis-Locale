@@ -102,13 +102,20 @@ notes.
       reply before speaking any of it) - `jarvis/voice/tts.py`'s `SentenceSpeaker` buffers
       streamed tokens and speaks each sentence as soon as it's complete. The voice loop now uses
       a local `speak_and_print()` instead of `cli.render()` so it can feed tokens to the speaker.
+- [x] Voice orb, step 1 (replaces a plain listening/speaking indicator - user's idea): a rotating
+      sphere made of dots (`src/jarvis/ui/orb.py`), drawn with plain `QPainter` - points placed
+      with a Fibonacci sphere distribution, rotated + tilted each frame, depth-shaded (near dots
+      bigger/brighter). No 3D engine, no new dependency. Standalone demo:
+      `examples/phase7_step4_orb.py`. Not audio-reactive yet, not wired into the UI yet.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Wire voice into the Qt UI: a mic button, a listening/speaking visual indicator, and a live
-   transcript preview - the UI pieces the user flagged back in Phase 6. Then barge-in
-   (interrupting Jarvis while it's speaking).
+2. Voice orb, step 2: audio-reactive shape. Needs switching TTS playback in `jarvis/voice/tts.py`
+   from blocking `sd.play()`/`sd.wait()` to a streaming `sd.OutputStream` callback, so we get a
+   live amplitude level per audio block while speaking; mic level reused from the existing
+   `Recorder` while listening. Then: wire the orb + mic button + live transcript into the main
+   window, click-to-expand, webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
 
 ## Open questions
 - None yet.
