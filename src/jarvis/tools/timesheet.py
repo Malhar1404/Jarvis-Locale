@@ -4,8 +4,10 @@ Scoped to exactly ONE spreadsheet ID (jarvis.config.TIMESHEET_SPREADSHEET_ID) - 
 arbitrary ID the model might pass in. This is the external-resource equivalent of the local
 folder allowlist: the tool itself only ever knows how to reach this one sheet.
 
-ASK_ONCE: this is the agent's first tool that reaches a real external account over the network,
-a new category of risk beyond local files/OS calls - worth a confirmation, even for a read.
+list_timesheet_tabs is ASK_ONCE: this is the agent's first tool reaching a real external account
+over the network, a new category of risk beyond local files/OS calls - worth a confirmation even
+for a read. read_timesheet_tab is ALWAYS_ASK: it exposes real row content (actual work entries),
+more sensitive than just tab names, every single time.
 """
 
 import gspread

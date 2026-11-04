@@ -26,8 +26,8 @@ def test_list_timesheet_tabs_handles_no_tabs():
         assert "no tabs found" in list_timesheet_tabs.invoke({})
 
 
-def test_read_timesheet_tab_is_ask_once():
-    assert get_risk_tier(read_timesheet_tab) == RiskTier.ASK_ONCE
+def test_read_timesheet_tab_is_always_ask():
+    assert get_risk_tier(read_timesheet_tab) == RiskTier.ALWAYS_ASK
 
 
 def test_read_timesheet_tab_returns_rows():
