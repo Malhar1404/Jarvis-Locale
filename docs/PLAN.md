@@ -50,14 +50,16 @@ Concepts: turning the raw stream into our own typed events (`Thinking`, `ToolCal
 Build: an `AgentEvent` model plus an `agent.run(text) -> Iterator[AgentEvent]` API; the CLI renders it as a timeline.
 Done when: the same event stream could drive any UI. This is what the Qt activity panel will consume.
 
-## Phase 4: Safety and human-in-the-loop
+## Phase 4: Safety and human-in-the-loop  (done)
 Concepts: checkpointers (SQLite), threads, `interrupt()`, `Command(resume=...)`, risk tiers
 (auto / ask once / always ask / never), folder allowlists, prompt injection and untrusted content, audit log.
 Build: a policy layer wrapping every tool, an approve/deny flow in the CLI, an append-only audit log.
 Done when: a "delete this file" request pauses, shows the exact action, and does nothing until you approve.
 
 ## Phase 5: Real PC tools
-Concepts: tool design (small, specific, good descriptions, errors returned to the model as text), Windows APIs.
+Concepts: tool design (small, specific, good descriptions, errors returned to the model as text), Windows APIs,
+folder allowlists, and treating file/web content as untrusted input (both deferred from Phase 4, now that
+there are real tools to apply them to).
 Build, in order of risk: open apps, volume/brightness, clipboard, list/read/search files in allowed folders,
 create notes and reminders, create/move/delete files (gated), web search (untrusted output), shell (always gated).
 Done when: 6-8 everyday tasks work reliably with the 4B model, each with a correct risk tier.
@@ -114,7 +116,7 @@ tools, and sometimes think before answering.
 - [x] Phase 1
 - [x] Phase 2
 - [x] Phase 3
-- [ ] Phase 4
+- [x] Phase 4
 - [ ] Phase 5
 - [ ] Phase 6
 - [ ] Phase 7
