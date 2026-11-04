@@ -106,16 +106,24 @@ notes.
       sphere made of dots (`src/jarvis/ui/orb.py`), drawn with plain `QPainter` - points placed
       with a Fibonacci sphere distribution, rotated + tilted each frame, depth-shaded (near dots
       bigger/brighter). No 3D engine, no new dependency. Standalone demo:
-      `examples/phase7_step4_orb.py`. Not audio-reactive yet, not wired into the UI yet.
+      `examples/phase7_step4_orb.py`.
+- [x] Voice orb, step 2: audio-reactive shape. `jarvis/voice/audio_level.py`'s `AudioLevel` is a
+      tiny shared value an audio thread writes and the orb's own frame timer polls (no lock, no
+      per-block Qt signal needed). `tts.speak()` now plays through a streaming `sd.OutputStream`
+      callback instead of blocking `sd.play()`/`sd.wait()`, updating the level live;
+      `voice/hotkey.py`'s `Recorder` does the same for mic input while listening. First attempt
+      (independent random wobble per point) looked like chaotic noise and destroyed the sphere's
+      shape - fixed with a shared "breathing" pulse plus a small spatially-coherent ripple (based
+      on each point's longitude, not randomness) layered on top. Standalone demo:
+      `examples/phase7_step5_orb_reactive.py`.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Voice orb, step 2: audio-reactive shape. Needs switching TTS playback in `jarvis/voice/tts.py`
-   from blocking `sd.play()`/`sd.wait()` to a streaming `sd.OutputStream` callback, so we get a
-   live amplitude level per audio block while speaking; mic level reused from the existing
-   `Recorder` while listening. Then: wire the orb + mic button + live transcript into the main
-   window, click-to-expand, webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
+2. Voice orb, step 3: wire the orb + a mic button + a live transcript preview into the main
+   window's right panel (below the tools list), with idle/listening/speaking states driven by
+   the same `AudioLevel`/`Recorder`/`SentenceSpeaker` pieces already built. Then: click-to-expand
+   fullscreen, webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
 
 ## Open questions
 - None yet.

@@ -1,5 +1,5 @@
 """The voice orb: a rotating sphere made of dots, drawn with plain QPainter - no 3D engine
-needed. Step 1 only proves the rotating visual; audio-reactivity and gestures come later.
+needed. Deforms with an AudioLevel (step 2) - gestures and UI wiring come later.
 """
 
 import math
@@ -9,6 +9,7 @@ from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from jarvis.ui import theme
+from jarvis.voice.audio_level import AudioLevel
 
 
 def _fibonacci_sphere(count: int) -> list[tuple[float, float, float]]:
@@ -31,15 +32,28 @@ class Orb(QWidget):
     TILT_DEGREES = 25
     ROTATION_DEGREES_PER_TICK = 0.6
     TICK_MS = 33  # ~30fps
+    LEVEL_SMOOTHING = 0.82  # how slowly the displayed level follows the raw audio level
+    PULSE_AMOUNT = 0.22  # uniform "breathing" size change at full volume
+    RIPPLE_AMOUNT = 0.08  # smaller detail layered on top - keep well below PULSE_AMOUNT
+    RIPPLE_BANDS = 4  # how many ripple bands wrap around the sphere
+    WOBBLE_SPEED = 4.0  # radians/second the ripple travels
 
-    def __init__(self) -> None:
+    def __init__(self, level_source: AudioLevel | None = None) -> None:
         super().__init__()
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(160, 160)
 
         self._points = _fibonacci_sphere(self.POINT_COUNT)
+        # Each point's longitude (its angle around the Y axis) - used so nearby points ripple
+        # together as a wave traveling around the sphere, instead of each wobbling independently
+        # at random (which just looks like noise and destroys the sphere's silhouette).
+        self._longitudes = [math.atan2(z, x) for x, _y, z in self._points]
         self._angle = 0.0
         self._tilt = math.radians(self.TILT_DEGREES)
+        self._time = 0.0
+
+        self._level_source = level_source
+        self._display_level = 0.0
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -47,6 +61,9 @@ class Orb(QWidget):
 
     def _tick(self) -> None:
         self._angle += math.radians(self.ROTATION_DEGREES_PER_TICK)
+        self._time += self.TICK_MS / 1000
+        target_level = self._level_source.value if self._level_source else 0.0
+        self._display_level += (target_level - self._display_level) * (1 - self.LEVEL_SMOOTHING)
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: ARG002 (Qt's signature, event unused)
@@ -63,12 +80,18 @@ class Orb(QWidget):
 
         # Draw back-to-front so near dots overlap far ones correctly.
         projected = []
-        for x, y, z in self._points:
+        for (x, y, z), longitude in zip(self._points, self._longitudes, strict=True):
             spun_x = x * cos_spin + z * sin_spin
             spun_z = -x * sin_spin + z * cos_spin
             tilted_y = y * cos_tilt - spun_z * sin_tilt
             tilted_z = y * sin_tilt + spun_z * cos_tilt
-            projected.append((spun_x, tilted_y, tilted_z))
+
+            ripple = math.sin(longitude * self.RIPPLE_BANDS + self._time * self.WOBBLE_SPEED)
+            bulge = self.PULSE_AMOUNT + ripple * self.RIPPLE_AMOUNT
+            radial_scale = 1.0 + self._display_level * bulge
+            projected.append(
+                (spun_x * radial_scale, tilted_y * radial_scale, tilted_z * radial_scale)
+            )
         projected.sort(key=lambda p: p[2])
 
         for px, py, pz in projected:

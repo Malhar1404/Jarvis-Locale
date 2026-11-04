@@ -10,14 +10,19 @@ import sounddevice as sd
 from pynput import keyboard
 
 from jarvis.config import SAMPLE_RATE
+from jarvis.voice.audio_level import AudioLevel
 
 
 class Recorder:
-    """Records mono float32 audio for as long as it's running, at config.SAMPLE_RATE."""
+    """Records mono float32 audio for as long as it's running, at config.SAMPLE_RATE. If level
+    is given, its value is updated in real time with the mic's volume - so the orb can react
+    while you're talking, not just while Jarvis is.
+    """
 
-    def __init__(self) -> None:
+    def __init__(self, level: AudioLevel | None = None) -> None:
         self._stream: sd.InputStream | None = None
         self._frames: list[np.ndarray] = []
+        self._level = level
 
     def start(self) -> None:
         self._frames = []
@@ -28,8 +33,13 @@ class Recorder:
 
     def _on_audio(self, indata: np.ndarray, frames: int, time_info, status) -> None:
         self._frames.append(indata.copy())
+        if self._level is not None:
+            rms = float(np.sqrt(np.mean(indata**2))) if frames else 0.0
+            self._level.set(rms * 6)  # mic input is quiet even when close - a bit more gain
 
     def stop(self) -> np.ndarray:
+        if self._level is not None:
+            self._level.set(0.0)
         if self._stream is None:
             return np.zeros(0, dtype="float32")
         self._stream.stop()
