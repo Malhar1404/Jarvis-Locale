@@ -56,13 +56,14 @@ Concepts: checkpointers (SQLite), threads, `interrupt()`, `Command(resume=...)`,
 Build: a policy layer wrapping every tool, an approve/deny flow in the CLI, an append-only audit log.
 Done when: a "delete this file" request pauses, shows the exact action, and does nothing until you approve.
 
-## Phase 5: Real PC tools
+## Phase 5: Real PC tools  (done)
 Concepts: tool design (small, specific, good descriptions, errors returned to the model as text), Windows APIs,
-folder allowlists, and treating file/web content as untrusted input (both deferred from Phase 4, now that
-there are real tools to apply them to).
-Build, in order of risk: open apps, volume/brightness, clipboard, list/read/search files in allowed folders,
-create notes and reminders, create/move/delete files (gated), web search (untrusted output), shell (always gated).
-Done when: 6-8 everyday tasks work reliably with the 4B model, each with a correct risk tier.
+folder allowlists, and treating file/web content as untrusted input.
+Built: open apps, volume/brightness, clipboard read/write, list/read/search/write/delete/move files in the
+workspace sandbox (folder allowlist), and a Google Sheets timesheet integration (list tabs, read a tab,
+add/merge an entry) - the agent's first external API tool, scoped to one fixed spreadsheet ID.
+Done when: 6-8 everyday tasks work reliably with the 4B model, each with a correct risk tier. (Exceeded -
+13 tools built.) Deferred as later follow-ups: web search (untrusted content input) and shell (always gated).
 
 ## Phase 6: Desktop UI (PySide6)
 Concepts: Qt event loop, signals/slots, worker threads (`QThread`) so the UI never freezes, model/view.
@@ -117,7 +118,7 @@ tools, and sometimes think before answering.
 - [x] Phase 2
 - [x] Phase 3
 - [x] Phase 4
-- [ ] Phase 5
+- [x] Phase 5
 - [ ] Phase 6
 - [ ] Phase 7
 - [ ] Phase 8

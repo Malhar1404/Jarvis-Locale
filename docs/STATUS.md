@@ -4,7 +4,7 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-11-04
-**Current phase:** Phase 4 code is done; user is editing the Phase 2-4 notes. Then start Phase 5.
+**Current phase:** Phase 5 code is done; user is editing the Phase 2-5 notes. Then start Phase 6.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -45,15 +45,28 @@
 - [x] Phase 4 notes drafted: `docs/phases/phase-04-safety.md` plus concepts `risk-tiers`,
       `interrupt-and-resume`, `audit-log`. Folder allowlists and prompt injection/untrusted
       content deferred to Phase 5, where real file/web tools exist to apply them to.
+- [x] Phase 5, step 1: folder allowlist (`.data/workspace/`) + real `open_app` tool
+      (`src/jarvis/safety/paths.py`, `src/jarvis/tools/apps.py`).
+- [x] Phase 5, step 2: volume/brightness control (AUTO). Found and fixed a COM threading bug -
+      LangGraph runs tool code on a worker thread; pycaw needed `CoInitialize()` there too.
+- [x] Phase 5, step 3: clipboard read (ASK_ONCE) / write (AUTO), using pywin32.
+- [x] Phase 5, step 4: list/read/search files in the workspace sandbox (AUTO).
+- [x] Phase 5, step 5: `write_file` - create/overwrite notes (ASK_ONCE).
+- [x] Phase 5, step 6: Google Sheets timesheet tools (`src/jarvis/tools/timesheet.py`) - the
+      agent's first external API integration. Moved a service-account key out of the workspace
+      sandbox after realizing the file tools could have read it. Found and fixed a duplicate-row
+      bug caused by small-model sentence-parsing ambiguity (docstring fix, not a code workaround).
+- [x] Phase 5, step 7: `delete_file` / `move_file` (ALWAYS_ASK) - the only destructive local ops.
+- [x] Phase 5 notes drafted: `docs/phases/phase-05-real-tools.md` plus concept
+      `folder-allowlist`. Web search and shell deferred as small follow-ups later.
 
 ## Next step
-1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md`,
-   `phase-03-events.md`, and `phase-04-safety.md`, and lists questions; Claude answers them. Then
-   commit the notes.
-2. Start Phase 5: real PC tools, in order of risk - open apps, volume/brightness, clipboard,
-   list/read/search files in allowed folders (folder allowlists), create notes/reminders,
-   create/move/delete files (gated), web search (untrusted output), shell (always gated). Each
-   tool gets a correct risk tier using what Phase 4 built.
+1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
+   `phase-05-real-tools.md`, and lists questions; Claude answers them. Then commit the notes.
+2. Start Phase 6: the PySide6 desktop UI - main window with chat, a live activity timeline
+   (thinking/tool call/result/waiting for approval), a native approval dialog, status bar, system
+   tray icon. Consumes the same `AgentEvent` stream `cli.py` already uses - no changes to
+   `jarvis.agent` needed.
 
 ## Open questions
 - None yet.
