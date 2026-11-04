@@ -14,6 +14,7 @@ dependencies = [
     "langgraph>=1.2.18",
     "psutil>=7.2.2",
     "pycaw>=20260927",
+    "pywin32>=312",
     "screen-brightness-control>=0.27.2",
 ]
 

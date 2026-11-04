@@ -21,6 +21,7 @@ from jarvis.agent.runner import Agent
 from jarvis.tools.apps import open_app
 from jarvis.tools.basic import divide, get_system_info, get_time, multiply
 from jarvis.tools.brightness import get_brightness, set_brightness
+from jarvis.tools.clipboard import get_clipboard, set_clipboard
 from jarvis.tools.volume import get_volume, set_volume
 
 SYSTEM_PROMPT = (
@@ -59,6 +60,8 @@ def run() -> None:
         set_volume,
         get_brightness,
         set_brightness,
+        get_clipboard,
+        set_clipboard,
     ]
     agent = Agent(tools=tools, system_prompt=SYSTEM_PROMPT)
 

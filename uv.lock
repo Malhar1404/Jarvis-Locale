@@ -296,6 +296,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "psutil" },
     { name = "pycaw" },
+    { name = "pywin32" },
     { name = "screen-brightness-control" },
 ]
 
@@ -313,6 +314,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=1.2.18" },
     { name = "psutil", specifier = ">=7.2.2" },
     { name = "pycaw", specifier = ">=20260927" },
+    { name = "pywin32", specifier = ">=312" },
     { name = "screen-brightness-control", specifier = ">=0.27.2" },
 ]
 
