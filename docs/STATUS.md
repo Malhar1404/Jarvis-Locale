@@ -76,12 +76,17 @@ approval cards is working. User is still editing the Phase 2-5 notes separately.
 - [x] Phase 6, step 4: status bar (`QMainWindow.statusBar()`) showing the live turn state on the
       left and the model name on the right; a generated system tray icon (`src/jarvis/ui/tray.py`)
       - closing the window now hides to the tray instead of quitting, with a Show/Hide/Quit menu.
+- [x] Phase 6, step 5: narrowed the chat column and added a right-hand `ToolsPanel`
+      (`src/jarvis/ui/tools_panel.py`) listing every tool the agent can call, highlighting
+      whichever one is currently running. `jarvis/setup.py` now exposes `build_tools()`
+      separately from `build_agent()` so the UI can get the tool names without duplicating the
+      list.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-05-real-tools.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Continue Phase 6: a side panel listing available tools, highlighting the one in use. After
-   that, the UI is in good shape to wire up voice (Phase 7).
+2. The user flagged one more UI piece still needed, to be added once Phase 7 (voice) starts -
+   not yet specified. Otherwise Phase 6's UI is in good shape to move on to Phase 7.
 
 ## Open questions
 - None yet.

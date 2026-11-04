@@ -2,6 +2,8 @@
 none of them has to duplicate the tool wiring.
 """
 
+from langchain_core.tools import BaseTool
+
 from jarvis.agent.runner import Agent
 from jarvis.tools.apps import open_app
 from jarvis.tools.basic import divide, get_system_info, get_time, multiply
@@ -24,8 +26,8 @@ SYSTEM_PROMPT = (
 )
 
 
-def build_agent() -> Agent:
-    tools = [
+def build_tools() -> list[BaseTool]:
+    return [
         get_time,
         multiply,
         divide,
@@ -47,4 +49,7 @@ def build_agent() -> Agent:
         read_timesheet_tab,
         add_timesheet_entry,
     ]
-    return Agent(tools=tools, system_prompt=SYSTEM_PROMPT)
+
+
+def build_agent(tools: list[BaseTool] | None = None) -> Agent:
+    return Agent(tools=tools if tools is not None else build_tools(), system_prompt=SYSTEM_PROMPT)

@@ -117,4 +117,31 @@ QStatusBar QLabel {{
 QStatusBar::item {{
     border: none;
 }}
+QScrollArea#toolsPanel {{
+    background-color: {PANEL};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QWidget#toolsPanelContent {{
+    background-color: {PANEL};
+}}
+QLabel#toolsPanelHeading {{
+    color: {ACCENT};
+    font-weight: 600;
+    font-family: {MONO_FONT};
+    font-size: 12px;
+    padding: 4px 8px 8px 8px;
+}}
+QLabel#toolRow {{
+    color: {MUTED};
+    font-family: {MONO_FONT};
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 4px;
+}}
+QLabel#toolRow[active="true"] {{
+    color: {BG};
+    background-color: {ACCENT};
+    font-weight: 600;
+}}
 """

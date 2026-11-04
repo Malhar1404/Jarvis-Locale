@@ -41,6 +41,7 @@ from jarvis.ui.cards import (
     UserCard,
 )
 from jarvis.ui.timeline import Timeline
+from jarvis.ui.tools_panel import ToolsPanel
 from jarvis.ui.tray import Tray, make_icon
 from jarvis.ui.worker import AgentWorker
 
@@ -62,7 +63,7 @@ class MainWindow(QMainWindow):
     send_requested = Signal(str)
     resume_requested = Signal(str)
 
-    def __init__(self, agent: Agent) -> None:
+    def __init__(self, agent: Agent, tool_names: list[str]) -> None:
         super().__init__()
         self.setWindowTitle("Jarvis")
         self.setStyleSheet(theme.STYLESHEET)
@@ -92,14 +93,23 @@ class MainWindow(QMainWindow):
         input_row.addWidget(self.input_line)
         input_row.addWidget(self.send_button)
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(24, 18, 24, 18)
-        layout.setSpacing(12)
-        layout.addLayout(header_row)
-        layout.addWidget(self.timeline)
-        layout.addLayout(input_row)
+        chat_layout = QVBoxLayout()
+        chat_layout.setSpacing(12)
+        chat_layout.addLayout(header_row)
+        chat_layout.addWidget(self.timeline)
+        chat_layout.addLayout(input_row)
+        chat_column = QWidget(objectName="chatColumn")
+        chat_column.setLayout(chat_layout)
+
+        self.tools_panel = ToolsPanel(tool_names)
+
+        body_layout = QHBoxLayout()
+        body_layout.setContentsMargins(24, 18, 24, 18)
+        body_layout.setSpacing(16)
+        body_layout.addWidget(chat_column, 1)
+        body_layout.addWidget(self.tools_panel)
         central = QWidget(objectName="central")
-        central.setLayout(layout)
+        central.setLayout(body_layout)
         self.setCentralWidget(central)
 
         self.send_button.clicked.connect(self._on_send)
@@ -150,13 +160,16 @@ class MainWindow(QMainWindow):
                 self._hide_thinking()
                 self._current_reply = None
                 self._set_status(f"RUNNING: {name}")
+                self.tools_panel.set_active(name)
                 self.timeline.add(ToolCallCard(name, args))
             case ToolResult(name=name, content=content, status=status):
                 self._hide_thinking()
+                self.tools_panel.set_active(None)
                 self.timeline.add(ToolResultCard(name, content, status))
             case Error(message=message):
                 self._hide_thinking()
                 self._current_reply = None
+                self.tools_panel.set_active(None)
                 self.timeline.add(ErrorCard(message))
             case ApprovalRequest(name=name, args=args, tier=tier):
                 self._hide_thinking()
@@ -174,6 +187,7 @@ class MainWindow(QMainWindow):
     def _on_turn_done(self) -> None:
         self._hide_thinking()
         self._current_reply = None
+        self.tools_panel.set_active(None)
         self._set_busy(False)
         self._set_status("IDLE")
 
