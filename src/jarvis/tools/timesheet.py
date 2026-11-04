@@ -31,3 +31,23 @@ def list_timesheet_tabs() -> str:
     sheet = _open_timesheet()
     names = [ws.title for ws in sheet.worksheets()]
     return "\n".join(names) if names else "(no tabs found)"
+
+
+MAX_PREVIEW_ROWS = 5
+
+
+@risk_tier(RiskTier.ALWAYS_ASK)
+@tool
+def read_timesheet_tab(tab_name: str) -> str:
+    """Read the header row and first few entries of one tab in the user's timesheet Google Sheet."""
+    sheet = _open_timesheet()
+    try:
+        worksheet = sheet.worksheet(tab_name)
+    except gspread.WorksheetNotFound:
+        known = ", ".join(ws.title for ws in sheet.worksheets())
+        return f"No tab called '{tab_name}'. Known tabs: {known}."
+
+    rows = worksheet.get_all_values()[:MAX_PREVIEW_ROWS]
+    if not rows:
+        return "(tab is empty)"
+    return "\n".join(" | ".join(row) for row in rows)
