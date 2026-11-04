@@ -4,7 +4,8 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-11-04
-**Current phase:** Phase 5 code is done; user is editing the Phase 2-5 notes. Then start Phase 6.
+**Current phase:** Phase 6 (desktop UI) - chat window with the live activity timeline and inline
+approval cards is working. User is still editing the Phase 2-5 notes separately.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -59,14 +60,26 @@
 - [x] Phase 5, step 7: `delete_file` / `move_file` (ALWAYS_ASK) - the only destructive local ops.
 - [x] Phase 5 notes drafted: `docs/phases/phase-05-real-tools.md` plus concept
       `folder-allowlist`. Web search and shell deferred as small follow-ups later.
+- [x] Phase 6, step 1: `jarvis/setup.py` - pulled the tool list/`SYSTEM_PROMPT` out of `cli.py`
+      so the CLI and the Qt UI share one place that builds the `Agent`.
+- [x] Phase 6, step 2: `PySide6-Essentials` added (not the full `pyside6` meta-package - that
+      pulls in QtWebEngine, ~125MB we don't need). Main window with a worker `QThread` running
+      `Agent.run()`/`resume()`, talking to the GUI thread only through signals/slots
+      (`src/jarvis/ui/worker.py`, `src/jarvis/ui/main_window.py`). Run with
+      `uv run python -m jarvis.ui`.
+- [x] Phase 6, step 3: dark "HUD" theme (`src/jarvis/ui/theme.py`) and a card-based live
+      activity timeline (`src/jarvis/ui/timeline.py`, `src/jarvis/ui/cards.py`) replacing a
+      single text log - a user message, Jarvis's reply, each tool call/result, and an error are
+      each their own widget. An `ApprovalRequest` renders as an inline card with real Yes/No
+      buttons (no OS popup), and a bouncing-dots card shows while waiting on the model or a
+      tool. Window opens maximized.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-05-real-tools.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Start Phase 6: the PySide6 desktop UI - main window with chat, a live activity timeline
-   (thinking/tool call/result/waiting for approval), a native approval dialog, status bar, system
-   tray icon. Consumes the same `AgentEvent` stream `cli.py` already uses - no changes to
-   `jarvis.agent` needed.
+2. Continue Phase 6: status bar (model name, idle/listening state) and a system tray icon are
+   still unbuilt. Consider also: scroll/visual polish on the timeline, and eventually wiring up
+   voice (Phase 7) through the same window.
 
 ## Open questions
 - None yet.

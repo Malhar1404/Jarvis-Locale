@@ -1,4 +1,5 @@
-from jarvis.cli import SYSTEM_PROMPT, run
+from jarvis.cli import run
+from jarvis.setup import SYSTEM_PROMPT
 
 
 def test_system_prompt_mentions_jarvis():
