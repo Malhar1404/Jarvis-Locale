@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import gspread
 
 from jarvis.safety.tiers import RiskTier, get_risk_tier
-from jarvis.tools.timesheet import list_timesheet_tabs, read_timesheet_tab
+from jarvis.tools.timesheet import add_timesheet_entry, list_timesheet_tabs, read_timesheet_tab
 
 
 def test_list_timesheet_tabs_is_ask_once():
@@ -51,3 +51,21 @@ def test_read_timesheet_tab_unknown_tab_lists_known_ones():
         result = read_timesheet_tab.invoke({"tab_name": "Nope"})
     assert "No tab called 'Nope'" in result
     assert "Guidelines" in result
+
+
+def test_add_timesheet_entry_is_always_ask():
+    assert get_risk_tier(add_timesheet_entry) == RiskTier.ALWAYS_ASK
+
+
+def test_add_timesheet_entry_inserts_at_row_2_with_mirrored_columns():
+    fake_worksheet = MagicMock()
+    fake_sheet = MagicMock()
+    fake_sheet.worksheet.return_value = fake_worksheet
+    with patch("jarvis.tools.timesheet._open_timesheet", return_value=fake_sheet):
+        result = add_timesheet_entry.invoke(
+            {"date": "10/31/2026", "task": "Fixed bug", "project": "sklo", "hours": "3"}
+        )
+    fake_worksheet.insert_row.assert_called_once_with(
+        ["10/31/2026", "Fixed bug", "", "sklo", "3"], index=2
+    )
+    assert "10/31/2026" in result

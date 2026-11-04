@@ -11,6 +11,7 @@ DATA_DIR = Path(os.getenv("JARVIS_DATA_DIR", PROJECT_ROOT / ".data"))
 # credential must never sit somewhere the agent's own tools can read it.
 GOOGLE_SERVICE_ACCOUNT_PATH = DATA_DIR / "google_service_account.json"
 TIMESHEET_SPREADSHEET_ID = "1sX0qzAL9Pr4Xyx5WJDh5LiFAFSqKcpruec6KdqwDEes"
+TIMESHEET_TAB_NAME = "Individual-Level"  # the only tab new entries are written to
 
 # qwen3:4b-instruct never thinks: fast and safe to speak aloud.
 # (The plain qwen3:4b tag is the thinking-only variant. See docs/decisions/0002.)

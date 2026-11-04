@@ -14,7 +14,11 @@ import gspread
 from google.oauth2.service_account import Credentials
 from langchain_core.tools import tool
 
-from jarvis.config import GOOGLE_SERVICE_ACCOUNT_PATH, TIMESHEET_SPREADSHEET_ID
+from jarvis.config import (
+    GOOGLE_SERVICE_ACCOUNT_PATH,
+    TIMESHEET_SPREADSHEET_ID,
+    TIMESHEET_TAB_NAME,
+)
 from jarvis.safety.tiers import RiskTier, risk_tier
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -53,3 +57,20 @@ def read_timesheet_tab(tab_name: str) -> str:
     if not rows:
         return "(tab is empty)"
     return "\n".join(" | ".join(row) for row in rows)
+
+
+@risk_tier(RiskTier.ALWAYS_ASK)
+@tool
+def add_timesheet_entry(date: str, task: str, project: str, hours: str) -> str:
+    """Add a new entry to the top of the user's daily timesheet.
+
+    date: the day this entry is for, matching the sheet's existing format (e.g. "10/31/2026").
+    task: what was worked on.
+    project: project name(s), matching the sheet's existing style (e.g. "sklo, self-learning").
+    hours: hours spent, matching the sheet's existing style (e.g. "2,3,3" for multiple tasks).
+    """
+    sheet = _open_timesheet()
+    worksheet = sheet.worksheet(TIMESHEET_TAB_NAME)
+    # Column layout mirrors every existing row exactly: Date, task text, (empty), Project, Hours.
+    worksheet.insert_row([date, task, "", project, hours], index=2)
+    return f"Added a new entry for {date} at the top of {TIMESHEET_TAB_NAME}."
