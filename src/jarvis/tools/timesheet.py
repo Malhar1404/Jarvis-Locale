@@ -62,15 +62,39 @@ def read_timesheet_tab(tab_name: str) -> str:
 @risk_tier(RiskTier.ALWAYS_ASK)
 @tool
 def add_timesheet_entry(date: str, task: str, project: str, hours: str) -> str:
-    """Add a new entry to the top of the user's daily timesheet.
+    """Add one piece of work to the user's daily timesheet for a given date.
+
+    The sheet holds ONE row per day: if an entry for this date already exists, the new
+    task/project/hours are merged into that same row instead of creating a second row for the
+    same date - call this once per project worked on; multiple calls for the same date combine
+    correctly into a single row, matching the sheet's existing style.
 
     date: the day this entry is for, matching the sheet's existing format (e.g. "10/31/2026").
     task: what was worked on.
-    project: project name(s), matching the sheet's existing style (e.g. "sklo, self-learning").
-    hours: hours spent, matching the sheet's existing style (e.g. "2,3,3" for multiple tasks).
+    project: the project name for this piece of work (e.g. "sklo").
+    hours: hours spent on this piece of work (e.g. "3").
     """
     sheet = _open_timesheet()
     worksheet = sheet.worksheet(TIMESHEET_TAB_NAME)
-    # Column layout mirrors every existing row exactly: Date, task text, (empty), Project, Hours.
-    worksheet.insert_row([date, task, "", project, hours], index=2)
-    return f"Added a new entry for {date} at the top of {TIMESHEET_TAB_NAME}."
+    values = worksheet.get_all_values()
+    row_index = next((i for i, row in enumerate(values) if row and row[0] == date), None)
+
+    if row_index is None:
+        # Column layout mirrors every existing row exactly: Date, task, (empty), Project, Hours.
+        worksheet.insert_row([date, task, "", project, hours], index=2)
+        return f"Added a new entry for {date} at the top of {TIMESHEET_TAB_NAME}."
+
+    existing = values[row_index]
+    existing_task = existing[1] if len(existing) > 1 else ""
+    existing_project = existing[3] if len(existing) > 3 else ""
+    existing_hours = existing[4] if len(existing) > 4 else ""
+
+    merged_task = f"{existing_task}\n\n{task}" if existing_task else task
+    merged_project = f"{existing_project}, {project}" if existing_project else project
+    merged_hours = f"{existing_hours},{hours}" if existing_hours else hours
+
+    sheet_row = row_index + 1  # gspread rows are 1-indexed
+    worksheet.update(
+        [[date, merged_task, "", merged_project, merged_hours]], f"A{sheet_row}:E{sheet_row}"
+    )
+    return f"Merged '{project}' into the existing entry for {date}."

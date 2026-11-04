@@ -57,8 +57,12 @@ def test_add_timesheet_entry_is_always_ask():
     assert get_risk_tier(add_timesheet_entry) == RiskTier.ALWAYS_ASK
 
 
-def test_add_timesheet_entry_inserts_at_row_2_with_mirrored_columns():
+def test_add_timesheet_entry_inserts_new_row_when_date_not_present():
     fake_worksheet = MagicMock()
+    fake_worksheet.get_all_values.return_value = [
+        ["Date", "1", "Task", "Project", "Hours"],
+        ["10/30/2026", "Old work", "", "sklo", "2"],
+    ]
     fake_sheet = MagicMock()
     fake_sheet.worksheet.return_value = fake_worksheet
     with patch("jarvis.tools.timesheet._open_timesheet", return_value=fake_sheet):
@@ -69,3 +73,22 @@ def test_add_timesheet_entry_inserts_at_row_2_with_mirrored_columns():
         ["10/31/2026", "Fixed bug", "", "sklo", "3"], index=2
     )
     assert "10/31/2026" in result
+
+
+def test_add_timesheet_entry_merges_into_existing_row_for_same_date():
+    fake_worksheet = MagicMock()
+    fake_worksheet.get_all_values.return_value = [
+        ["Date", "1", "Task", "Project", "Hours"],
+        ["10/31/2026", "Fixed bug", "", "sklo", "3"],
+    ]
+    fake_sheet = MagicMock()
+    fake_sheet.worksheet.return_value = fake_worksheet
+    with patch("jarvis.tools.timesheet._open_timesheet", return_value=fake_sheet):
+        result = add_timesheet_entry.invoke(
+            {"date": "10/31/2026", "task": "Wrote docs", "project": "self-learning", "hours": "1"}
+        )
+    fake_worksheet.insert_row.assert_not_called()
+    fake_worksheet.update.assert_called_once_with(
+        [["10/31/2026", "Fixed bug\n\nWrote docs", "", "sklo, self-learning", "3,1"]], "A2:E2"
+    )
+    assert "Merged" in result
