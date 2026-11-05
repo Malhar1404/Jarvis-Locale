@@ -18,7 +18,7 @@ APPROVAL = "#e040fb"
 MONO_FONT = 'Consolas, "Cascadia Mono", monospace'
 
 STYLESHEET = f"""
-QMainWindow, QWidget#central {{
+QMainWindow, QWidget#central, QWidget#sideColumn, QWidget#chatColumn {{
     background-color: {BG};
 }}
 QLabel#title {{

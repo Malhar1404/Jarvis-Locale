@@ -139,13 +139,21 @@
       stacked up as separate live processes, each with its own hotkey listener and TTS pipeline.
       Fixed by closing the stale processes; going forward, use "Quit Jarvis" from the tray (or
       close all instances) before relaunching for a test, not just the window's X button.
+- [x] Voice orb, step 3: wired into the main window's right panel, below the tools list
+      (`src/jarvis/ui/main_window.py`). Only fed by `AgentWorker`'s `SentenceSpeaker` (Jarvis's
+      own voice) - the `Recorder` no longer shares the `AudioLevel`, after the user pointed out
+      the orb reacting to *their* voice too was wrong; it should only visualize Jarvis speaking.
+      Click-to-expand fullscreen: `Orb` gained a `clicked` signal (plain `QWidget`s have none
+      built in), hides the chat/tools panels and gives the orb's column layout stretch so it
+      fills the window; Esc or clicking again restores the normal layout.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Wire the orb itself into the main window (idle/listening/speaking states, using the
-   `AudioLevel`/`Recorder`/`SentenceSpeaker` pieces already built), then click-to-expand
-   fullscreen, webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
+2. Webcam pinch-to-zoom (new `jarvis/vision/` module: a background thread capturing webcam
+   frames, MediaPipe Hands for landmarks, pinch distance pushes the orb's dots apart/together,
+   springs back on release - camera only active while the orb is expanded fullscreen). Then
+   barge-in (interrupting Jarvis mid-sentence).
 
 ## Open questions
 - None yet.

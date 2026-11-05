@@ -4,7 +4,7 @@ a single text box, so a tool call, a result, and an approval request can each be
 widget - which is what lets an approval have real buttons and "thinking" actually animate.
 """
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QApplication,
@@ -40,10 +40,12 @@ from jarvis.ui.cards import (
     ToolResultCard,
     UserCard,
 )
+from jarvis.ui.orb import Orb
 from jarvis.ui.timeline import Timeline
 from jarvis.ui.tools_panel import ToolsPanel
 from jarvis.ui.tray import Tray, make_icon
 from jarvis.ui.worker import AgentWorker
+from jarvis.voice.audio_level import AudioLevel
 from jarvis.voice.hotkey import Recorder, listen_push_to_talk
 
 
@@ -100,6 +102,7 @@ class MainWindow(QMainWindow):
         input_row.addWidget(self.input_line)
         input_row.addWidget(self.send_button)
 
+        self._level = AudioLevel()  # drives the orb - only fed by Jarvis's own TTS, not your mic
         self._recorder = Recorder()
         self._recording = False
         self._busy = False
@@ -111,18 +114,30 @@ class MainWindow(QMainWindow):
         chat_layout.addLayout(header_row)
         chat_layout.addWidget(self.timeline)
         chat_layout.addLayout(input_row)
-        chat_column = QWidget(objectName="chatColumn")
-        chat_column.setLayout(chat_layout)
+        self.chat_column = QWidget(objectName="chatColumn")
+        self.chat_column.setLayout(chat_layout)
 
         self.tools_panel = ToolsPanel(tool_names)
+        self.orb = Orb(level_source=self._level)
+        self.orb.setToolTip("Click to expand")
+        self.orb.clicked.connect(self._toggle_orb_fullscreen)
+        _glow(self.orb, radius=18)
+        self._orb_fullscreen = False
 
-        body_layout = QHBoxLayout()
-        body_layout.setContentsMargins(24, 18, 24, 18)
-        body_layout.setSpacing(16)
-        body_layout.addWidget(chat_column, 1)
-        body_layout.addWidget(self.tools_panel)
+        side_layout = QVBoxLayout()
+        side_layout.setSpacing(16)
+        side_layout.addWidget(self.tools_panel)
+        side_layout.addWidget(self.orb)
+        self.side_column = QWidget(objectName="sideColumn")
+        self.side_column.setLayout(side_layout)
+
+        self.body_layout = QHBoxLayout()
+        self.body_layout.setContentsMargins(24, 18, 24, 18)
+        self.body_layout.setSpacing(16)
+        self.body_layout.addWidget(self.chat_column, 1)
+        self.body_layout.addWidget(self.side_column)
         central = QWidget(objectName="central")
-        central.setLayout(body_layout)
+        central.setLayout(self.body_layout)
         self.setCentralWidget(central)
 
         self.send_button.clicked.connect(self._on_send)
@@ -149,7 +164,7 @@ class MainWindow(QMainWindow):
             self.tray.show()
 
         self._thread = QThread()
-        self._worker = AgentWorker(agent)
+        self._worker = AgentWorker(agent, level=self._level)
         self._worker.moveToThread(self._thread)
         self._worker.event.connect(self._on_event)
         self._worker.turn_done.connect(self._on_turn_done)
@@ -219,6 +234,20 @@ class MainWindow(QMainWindow):
             self._on_send()
         else:
             self.input_line.setFocus()
+
+    def _toggle_orb_fullscreen(self) -> None:
+        self._orb_fullscreen = not self._orb_fullscreen
+        self.chat_column.setVisible(not self._orb_fullscreen)
+        self.tools_panel.setVisible(not self._orb_fullscreen)
+        # Without a stretch factor, a layout sizes a widget to its own content once its only
+        # sibling (chat_column) is hidden - this is what actually lets the orb fill the window.
+        self.body_layout.setStretchFactor(self.side_column, 1 if self._orb_fullscreen else 0)
+
+    def keyPressEvent(self, event) -> None:
+        if self._orb_fullscreen and event.key() == Qt.Key.Key_Escape:
+            self._toggle_orb_fullscreen()
+            return
+        super().keyPressEvent(event)
 
     @staticmethod
     def _repolish(widget: QWidget) -> None:

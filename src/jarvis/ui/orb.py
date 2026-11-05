@@ -1,11 +1,12 @@
 """The voice orb: a rotating sphere made of dots, drawn with plain QPainter - no 3D engine
-needed. Deforms with an AudioLevel (step 2) - gestures and UI wiring come later.
+needed. Deforms with an AudioLevel (step 2); clicking it asks to go full screen (step 3) - the
+window decides what that actually means. Gestures come later.
 """
 
 import math
 
-from PySide6.QtCore import QPointF, Qt, QTimer
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtCore import QPointF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QMouseEvent, QPainter
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from jarvis.ui import theme
@@ -28,6 +29,8 @@ def _fibonacci_sphere(count: int) -> list[tuple[float, float, float]]:
 
 
 class Orb(QWidget):
+    clicked = Signal()
+
     POINT_COUNT = 400
     TILT_DEGREES = 25
     ROTATION_DEGREES_PER_TICK = 0.6
@@ -42,6 +45,7 @@ class Orb(QWidget):
         super().__init__()
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(160, 160)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._points = _fibonacci_sphere(self.POINT_COUNT)
         # Each point's longitude (its angle around the Y axis) - used so nearby points ripple
@@ -104,3 +108,8 @@ class Orb(QWidget):
             color.setAlphaF(0.15 + depth * 0.75)
             painter.setBrush(color)
             painter.drawEllipse(QPointF(screen_x, screen_y), dot_radius, dot_radius)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)

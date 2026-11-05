@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from jarvis.agent.events import AgentEvent, ApprovalRequest, Token
 from jarvis.agent.runner import Agent
+from jarvis.voice.audio_level import AudioLevel
 from jarvis.voice.stt import transcribe
 from jarvis.voice.tts import SentenceSpeaker
 
@@ -19,9 +20,10 @@ class AgentWorker(QObject):
     turn_done = Signal()  # the agent is idle again, waiting for the next message
     transcribed = Signal(str)  # a recorded clip has been turned into text
 
-    def __init__(self, agent: Agent) -> None:
+    def __init__(self, agent: Agent, level: AudioLevel | None = None) -> None:
         super().__init__()
         self._agent = agent
+        self._level = level
         # Whether the reply to the turn in progress should be spoken - set by send(), and still
         # in effect through any resume() calls that finish the same turn after an approval.
         self._speak_current_turn = False
@@ -43,7 +45,7 @@ class AgentWorker(QObject):
         self.transcribed.emit(transcribe(audio))
 
     def _drive(self, events: Iterator[AgentEvent]) -> None:
-        speaker = SentenceSpeaker() if self._speak_current_turn else None
+        speaker = SentenceSpeaker(self._level) if self._speak_current_turn else None
         paused = False
         for ev in events:
             if speaker is not None and isinstance(ev, Token):
