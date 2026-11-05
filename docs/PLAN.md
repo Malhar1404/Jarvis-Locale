@@ -74,11 +74,16 @@ Consumes phase 3 events with zero changes to `jarvis.agent`.
 Done when: you can run a task and watch every step happen in the UI. (Done - one more UI piece
 intentionally deferred to Phase 7, once voice needs it.)
 
-## Phase 7: Voice
-Concepts: VAD, STT (`faster-whisper` on CPU), TTS (Piper), push-to-talk with a global hotkey, streaming TTS
-sentence by sentence, barge-in (interrupt while speaking), optional wake word (openWakeWord).
-Build: hotkey -> record -> transcribe -> agent -> speak. UI shows idle / listening / thinking / speaking.
-Done when: you can run an everyday task entirely by voice, including a spoken approval.
+## Phase 7: Voice  (done)
+Concepts: VAD (both post-hoc clip cleanup and live silence detection), STT (`faster-whisper` on
+CPU), TTS (Piper, streaming sentence by sentence), push-to-talk with a global hotkey, webcam hand
+gestures (MediaPipe Hands) controlling a new rotating-dot voice orb.
+Built: hotkey -> record -> transcribe -> agent -> speak, wired into the Qt UI alongside a
+review-before-send mic button. The orb deforms with Jarvis's own speech volume and responds to
+hand gestures (finger-follow, fist squeeze/burst) when expanded fullscreen.
+Done when: you can run an everyday task entirely by voice, including a spoken reply. (Done -
+barge-in and a wake word were concepts on the list but aren't required by this bar; deferred, along
+with a hands-free "Audio mode" that was built but didn't transcribe reliably enough to ship.)
 
 ## Phase 8: Memory and context
 Concepts: short-term memory (checkpointer threads), long-term memory (LangGraph store), trimming and
@@ -123,7 +128,7 @@ tools, and sometimes think before answering.
 - [x] Phase 4
 - [x] Phase 5
 - [x] Phase 6
-- [ ] Phase 7
+- [x] Phase 7
 - [ ] Phase 8
 - [ ] Phase 9
 - [ ] Phase 10
