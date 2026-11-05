@@ -29,7 +29,7 @@ from jarvis.agent.events import (
     ToolResult,
 )
 from jarvis.agent.runner import Agent
-from jarvis.config import MODEL
+from jarvis.config import MODEL, PUSH_TO_TALK_KEY
 from jarvis.ui import theme
 from jarvis.ui.cards import (
     ApprovalCard,
@@ -44,7 +44,7 @@ from jarvis.ui.timeline import Timeline
 from jarvis.ui.tools_panel import ToolsPanel
 from jarvis.ui.tray import Tray, make_icon
 from jarvis.ui.worker import AgentWorker
-from jarvis.voice.hotkey import Recorder
+from jarvis.voice.hotkey import Recorder, listen_push_to_talk
 
 
 def _glow(widget: QWidget, color: str = theme.ACCENT, radius: int = 24) -> None:
@@ -61,9 +61,11 @@ def _glow(widget: QWidget, color: str = theme.ACCENT, radius: int = 24) -> None:
 class MainWindow(QMainWindow):
     # Crossing from this (main) thread into the worker's thread must go through signals - Qt
     # then queues the call onto the worker's thread instead of running it here by mistake.
-    send_requested = Signal(str)
+    send_requested = Signal(str, bool)  # text, speak_the_reply
     resume_requested = Signal(str)
     transcribe_requested = Signal(object)  # a recorded numpy clip
+    hotkey_pressed = Signal()  # pynput calls these from its own thread, not the GUI thread
+    hotkey_released = Signal()
 
     def __init__(self, agent: Agent, tool_names: list[str]) -> None:
         super().__init__()
@@ -100,6 +102,9 @@ class MainWindow(QMainWindow):
 
         self._recorder = Recorder()
         self._recording = False
+        self._busy = False
+        self._voice_auto_send = False  # set just before a release, read when transcription lands
+        self._voice_turn = False  # True if the text about to be sent came from voice input
 
         chat_layout = QVBoxLayout()
         chat_layout.setSpacing(12)
@@ -124,6 +129,14 @@ class MainWindow(QMainWindow):
         self.input_line.returnPressed.connect(self._on_send)
         self.mic_button.pressed.connect(self._on_mic_press)
         self.mic_button.released.connect(self._on_mic_release)
+        self.hotkey_pressed.connect(self._on_hotkey_pressed)
+        self.hotkey_released.connect(self._on_hotkey_released)
+
+        # listen_push_to_talk's callbacks run on pynput's own thread, never the GUI thread - they
+        # may only ever emit a signal (thread-safe from anywhere), never touch a widget directly.
+        self._hotkey_listener = listen_push_to_talk(
+            PUSH_TO_TALK_KEY, self.hotkey_pressed.emit, self.hotkey_released.emit
+        )
 
         self.status_label = QLabel("IDLE")
         self.model_label = QLabel(MODEL)
@@ -150,16 +163,32 @@ class MainWindow(QMainWindow):
         text = self.input_line.text().strip()
         if not text:
             return
+        speak = self._voice_turn
+        self._voice_turn = False
         self.input_line.clear()
         self.timeline.add(UserCard(text))
         self._current_reply = None
         self._show_thinking()
         self._set_busy(True)
         self._set_status("THINKING...")
-        self.send_requested.emit(text)
+        self.send_requested.emit(text, speak)
 
     def _on_mic_press(self) -> None:
-        if self._recording:
+        self._start_recording()
+
+    def _on_mic_release(self) -> None:
+        self._stop_recording(auto_send=False)
+
+    def _on_hotkey_pressed(self) -> None:
+        self._start_recording()
+
+    def _on_hotkey_released(self) -> None:
+        self._stop_recording(auto_send=True)
+
+    def _start_recording(self) -> None:
+        # The global hotkey isn't a widget, so it isn't disabled by _set_busy()'s
+        # mic_button.setEnabled(False) the way a mouse click already is - check explicitly.
+        if self._recording or self._busy:
             return
         self._recording = True
         self.mic_button.setProperty("recording", True)
@@ -167,10 +196,11 @@ class MainWindow(QMainWindow):
         self._set_status("LISTENING...")
         self._recorder.start()
 
-    def _on_mic_release(self) -> None:
+    def _stop_recording(self, *, auto_send: bool) -> None:
         if not self._recording:
             return
         self._recording = False
+        self._voice_auto_send = auto_send
         self.mic_button.setProperty("recording", False)
         self._repolish(self.mic_button)
         self._set_status("TRANSCRIBING...")
@@ -178,10 +208,17 @@ class MainWindow(QMainWindow):
         self.transcribe_requested.emit(audio)
 
     def _on_transcribed(self, text: str) -> None:
+        auto_send = self._voice_auto_send
+        self._voice_auto_send = False
         self._set_status("IDLE")
-        if text:
-            self.input_line.setText(text)
-        self.input_line.setFocus()
+        if not text:
+            return
+        self.input_line.setText(text)
+        self._voice_turn = True
+        if auto_send:
+            self._on_send()
+        else:
+            self.input_line.setFocus()
 
     @staticmethod
     def _repolish(widget: QWidget) -> None:
@@ -250,6 +287,7 @@ class MainWindow(QMainWindow):
             self.timeline.remove(card)
 
     def _set_busy(self, busy: bool) -> None:
+        self._busy = busy
         self.input_line.setEnabled(not busy)
         self.send_button.setEnabled(not busy)
         self.mic_button.setEnabled(not busy)
@@ -276,6 +314,7 @@ class MainWindow(QMainWindow):
                 3000,
             )
             return
+        self._hotkey_listener.stop()
         self._thread.quit()
         self._thread.wait()
         super().closeEvent(event)

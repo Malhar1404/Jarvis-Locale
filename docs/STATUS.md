@@ -3,9 +3,8 @@
 > Resume point. Update at the end of every session.
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
-**Last updated:** 2026-11-04
-**Current phase:** Phase 7 (voice), step 1 done. User is also separately editing the Phase 2-6
-notes.
+**Last updated:** 2026-11-05
+**Current phase:** Phase 7 (voice). User is also separately editing the Phase 2-6 notes.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -117,20 +116,36 @@ notes.
       on each point's longitude, not randomness) layered on top. Standalone demo:
       `examples/phase7_step5_orb_reactive.py`.
 - [x] Mic button wired into the main window (`src/jarvis/ui/main_window.py`): press-and-hold the
-      \U0001f3a4 button next to the input box to record (same `Recorder` the hotkey uses), release
-      to transcribe. `AgentWorker` gained a `transcribe` slot (runs faster-whisper off the GUI
+      mic button next to the input box to record (same `Recorder` the hotkey uses), release to
+      transcribe. `AgentWorker` gained a `transcribe` slot (runs faster-whisper off the GUI
       thread) and a `transcribed` signal. The result fills the input box - it is deliberately
       *not* auto-sent, so you can review/fix a misheard word before clicking Send yourself.
+- [x] "Audio mode" (hands-free, continuous listening via live `webrtcvad` silence detection,
+      `src/jarvis/voice/audio_mode.py`) was built and the state machine verified correct with a
+      scripted speech/silence sequence - but real transcriptions came back coherent-sounding yet
+      *wrong* ("completely off", per the user). Parked rather than debugged further: the code and
+      its standalone demo (`examples/phase7_step6_audio_mode.py`, which also dumps each captured
+      clip to `.data/audio_mode_debug/*.wav` for inspection) are kept for a possible later look,
+      but nothing from it is wired into the app.
+- [x] Global push-to-talk hotkey wired into the main window instead: hold `PUSH_TO_TALK_KEY`
+      (F9) anywhere - even window unfocused - release to auto-transcribe *and* auto-send, with
+      the reply spoken aloud. `AgentWorker.send` now takes a `speak: bool` and builds a
+      `SentenceSpeaker` for the turn when true. The existing mic *button* deliberately keeps its
+      old review-then-Send, silent-reply behavior - two different tools for two different
+      moments, not one unified mechanism.
+- [x] Found and fixed a real bug: pressing F9 spoke the reply *twice simultaneously*. Root cause
+      was environmental, not code - closing a test window now hides it to the tray instead of
+      quitting (see Phase 6), so several `uv run python -m jarvis.ui` launches during testing had
+      stacked up as separate live processes, each with its own hotkey listener and TTS pipeline.
+      Fixed by closing the stale processes; going forward, use "Quit Jarvis" from the tray (or
+      close all instances) before relaunching for a test, not just the window's X button.
 
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. "Audio mode": a separate hands-free toggle (continuous listening, no button to hold per turn).
-   Needs live silence detection via `webrtcvad` (a new dependency - faster-whisper's VAD only
-   filters a finished clip, it has no frame-by-frame streaming API) to know when an utterance
-   ended, so it can auto-transcribe and auto-send without a manual Send click. Then: wire the orb
-   itself into the main window with idle/listening/speaking states, click-to-expand fullscreen,
-   webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
+2. Wire the orb itself into the main window (idle/listening/speaking states, using the
+   `AudioLevel`/`Recorder`/`SentenceSpeaker` pieces already built), then click-to-expand
+   fullscreen, webcam pinch-to-zoom (MediaPipe Hands), and barge-in.
 
 ## Open questions
 - None yet.
