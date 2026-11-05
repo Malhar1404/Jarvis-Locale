@@ -37,3 +37,10 @@ TTS_VOICES_DIR = DATA_DIR / "voices"
 # Hold this key to talk, release to stop recording. Must be a name pynput.keyboard.Key knows
 # (e.g. "f9", "space") - see https://pynput.readthedocs.io/en/latest/keyboard.html#pynput.keyboard.Key
 PUSH_TO_TALK_KEY = os.getenv("JARVIS_PUSH_TO_TALK_KEY", "f9")
+
+# Webcam pinch-to-zoom (MediaPipe Hands). The model is downloaded once into .data/models/.
+HAND_LANDMARKER_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
+    "hand_landmarker/float16/latest/hand_landmarker.task"
+)
+HAND_LANDMARKER_MODEL_PATH = DATA_DIR / "models" / "hand_landmarker.task"

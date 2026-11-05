@@ -4,7 +4,8 @@
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
 **Last updated:** 2026-11-05
-**Current phase:** Phase 7 (voice). User is also separately editing the Phase 2-6 notes.
+**Current phase:** Phase 7 (voice) code is done. User is also separately editing the Phase 2-6
+notes.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -147,13 +148,26 @@
       built in), hides the chat/tools panels and gives the orb's column layout stretch so it
       fills the window; Esc or clicking again restores the normal layout.
 
+- [x] Webcam hand gestures (`src/jarvis/vision/`), replacing an initial pinch-to-zoom attempt the
+      user found unsatisfying. `HandTracker` (background thread, `MediaPipe` `HandLandmarker`)
+      classifies the whole hand as open/fist/other and tracks the index fingertip, writing both
+      into a `HandState` the orb's frame timer polls - the same "thread writes, UI timer reads"
+      pattern as `AudioLevel` (see [[qt-threading]]). Two gestures: moving your index finger
+      moves the orb across the screen and squashes it along its direction of travel; closing
+      your fist squeezes it, and opening your hand bursts every point outward with its own
+      damped spring before it settles back - real per-point transient state, a first for the
+      orb (everything before this was a pure function of time + audio level, no memory). Camera
+      only runs while the orb is expanded fullscreen, with a visible "CAMERA ACTIVE" label.
+      Caught and fixed a real bug via `ruff` (`F841`) while writing this: `pz` was reading
+      `spun_z` instead of `tilted_z`, silently dropping the tilt transform from the depth sort.
+
 ## Next step
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
-   `phase-06-ui.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Webcam pinch-to-zoom (new `jarvis/vision/` module: a background thread capturing webcam
-   frames, MediaPipe Hands for landmarks, pinch distance pushes the orb's dots apart/together,
-   springs back on release - camera only active while the orb is expanded fullscreen). Then
-   barge-in (interrupting Jarvis mid-sentence).
+   `phase-07-voice.md`, and lists questions; Claude answers them. Then commit the notes.
+2. Start Phase 8: memory and context (short-term via checkpointer threads, long-term via the
+   LangGraph store, trimming/summarizing for the small model, a remembered user profile). Barge-in
+   (interrupting Jarvis mid-sentence) and a wake word are explicitly deferred Phase 7 follow-ups,
+   pickable up whenever wanted.
 
 ## Open questions
 - None yet.

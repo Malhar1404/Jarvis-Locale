@@ -45,6 +45,8 @@ from jarvis.ui.timeline import Timeline
 from jarvis.ui.tools_panel import ToolsPanel
 from jarvis.ui.tray import Tray, make_icon
 from jarvis.ui.worker import AgentWorker
+from jarvis.vision.hand_state import HandState
+from jarvis.vision.hand_tracking import HandTracker
 from jarvis.voice.audio_level import AudioLevel
 from jarvis.voice.hotkey import Recorder, listen_push_to_talk
 
@@ -118,15 +120,22 @@ class MainWindow(QMainWindow):
         self.chat_column.setLayout(chat_layout)
 
         self.tools_panel = ToolsPanel(tool_names)
-        self.orb = Orb(level_source=self._level)
+        self._hand_state = HandState()
+        self._hand_tracker = HandTracker(self._hand_state)
+        self.orb = Orb(level_source=self._level, hand_source=self._hand_state)
         self.orb.setToolTip("Click to expand")
         self.orb.clicked.connect(self._toggle_orb_fullscreen)
         _glow(self.orb, radius=18)
         self._orb_fullscreen = False
 
+        self.camera_indicator = QLabel("● CAMERA ACTIVE - move your hand to control the orb")
+        self.camera_indicator.setObjectName("cameraIndicator")
+        self.camera_indicator.hide()
+
         side_layout = QVBoxLayout()
         side_layout.setSpacing(16)
         side_layout.addWidget(self.tools_panel)
+        side_layout.addWidget(self.camera_indicator)
         side_layout.addWidget(self.orb)
         self.side_column = QWidget(objectName="sideColumn")
         self.side_column.setLayout(side_layout)
@@ -243,6 +252,15 @@ class MainWindow(QMainWindow):
         # sibling (chat_column) is hidden - this is what actually lets the orb fill the window.
         self.body_layout.setStretchFactor(self.side_column, 1 if self._orb_fullscreen else 0)
 
+        # The webcam is privacy-sensitive, so it only ever runs while the orb is expanded, and
+        # camera_indicator makes that visible rather than leaving it silently running.
+        if self._orb_fullscreen:
+            self._hand_tracker.start()
+            self.camera_indicator.show()
+        else:
+            self._hand_tracker.stop()
+            self.camera_indicator.hide()
+
     def keyPressEvent(self, event) -> None:
         if self._orb_fullscreen and event.key() == Qt.Key.Key_Escape:
             self._toggle_orb_fullscreen()
@@ -344,6 +362,7 @@ class MainWindow(QMainWindow):
             )
             return
         self._hotkey_listener.stop()
+        self._hand_tracker.stop()
         self._thread.quit()
         self._thread.wait()
         super().closeEvent(event)

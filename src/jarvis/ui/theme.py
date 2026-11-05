@@ -165,4 +165,11 @@ QLabel#toolRow[active="true"] {{
     background-color: {ACCENT};
     font-weight: 600;
 }}
+QLabel#cameraIndicator {{
+    color: {ERROR};
+    font-family: {MONO_FONT};
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 4px;
+}}
 """
