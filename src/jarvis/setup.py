@@ -17,12 +17,20 @@ from jarvis.tools.files import (
     search_files,
     write_file,
 )
+from jarvis.tools.screen import inspect_screen
 from jarvis.tools.timesheet import add_timesheet_entry, list_timesheet_tabs, read_timesheet_tab
 from jarvis.tools.volume import get_volume, set_volume
 
 SYSTEM_PROMPT = (
     "You are Jarvis, a helpful assistant running locally on the user's PC. "
-    "Be short and clear. Use a tool only when it is really needed."
+    "Be short and clear. Use a tool only when it is really needed. "
+    "Your bound tool definitions are the authoritative list of your capabilities: never claim "
+    "that you cannot perform an action when a matching tool is available. For a direct request "
+    "to change brightness or volume, call the matching set tool instead of explaining how the "
+    "operating system works. "
+    "For questions about the user's currently visible apps, UI, errors, or desktop, use "
+    "inspect_screen. It returns observations from a vision model: turn those into a helpful "
+    "human-readable answer, and do not present its JSON directly."
 )
 
 
@@ -32,6 +40,7 @@ def build_tools() -> list[BaseTool]:
         multiply,
         divide,
         get_system_info,
+        inspect_screen,
         open_app,
         get_volume,
         set_volume,

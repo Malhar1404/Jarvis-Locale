@@ -51,11 +51,11 @@ HAND_LANDMARKER_MODEL_URL = (
 HAND_LANDMARKER_MODEL_PATH = DATA_DIR / "models" / "hand_landmarker.task"
 
 # Short-term memory: the conversation survives an app restart because it's keyed to the same
-# thread_id in a checkpoint file on disk, not a new random id in RAM. One constant id is enough -
-# Jarvis only ever has one ongoing conversation (see jarvis.ui.single_instance for why there's
-# only ever one process, too).
+# thread_id in a checkpoint file on disk, not a new random id in RAM. Screen Awareness is a new
+# capability, so it starts a fresh conversation rather than inheriting the old model replies that
+# incorrectly said Jarvis had no PC tools. The original "main" checkpoint remains intact.
 CHECKPOINT_DB_PATH = DATA_DIR / "checkpoints.sqlite"
-THREAD_ID = "main"
+THREAD_ID = "screen-aware"
 
 # On-demand screen captures are short-lived runtime data.  This location is deliberately outside
 # the workspace that Jarvis's file tools may read.  The retention period is enforced by the

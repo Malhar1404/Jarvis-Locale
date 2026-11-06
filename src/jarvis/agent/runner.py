@@ -49,9 +49,16 @@ class Agent:
         # gets a new id every time, so it looks "new" to it).
         existing = self._graph.get_state(self._config).values
         self._seeded = bool(existing)
-        self.history: list[BaseMessage] = (
-            list(existing["messages"]) if existing else [SystemMessage(system_prompt)]
-        )
+        if existing:
+            # Checkpoints intentionally preserve a conversation across restarts, but the system
+            # prompt is application configuration, not conversation content.  Keep the original
+            # message id so add_messages replaces it in place rather than appending a conflicting
+            # second system instruction halfway through the history.
+            messages = _with_current_system_prompt(list(existing["messages"]), system_prompt)
+            self._graph.update_state(self._config, {"messages": messages})
+            self.history = list(self._graph.get_state(self._config).values["messages"])
+        else:
+            self.history = [SystemMessage(system_prompt)]
 
     def run(self, text: str) -> Iterator[AgentEvent]:
         """Send one new user message through the graph, yielding events as they happen.
@@ -106,3 +113,14 @@ def _events_for(node_name: str, msg: BaseMessage) -> Iterator[AgentEvent]:
     elif node_name == "tools" and isinstance(msg, ToolMessage):
         status = "error" if msg.status == "error" else "ok"
         yield ToolResult(name=msg.name or "unknown", content=str(msg.content), status=status)
+
+
+def _with_current_system_prompt(
+    messages: list[BaseMessage], system_prompt: str
+) -> list[BaseMessage]:
+    """Replace the persisted system message while retaining every user/assistant turn."""
+    for index, message in enumerate(messages):
+        if isinstance(message, SystemMessage):
+            updated = SystemMessage(content=system_prompt, id=message.id)
+            return [*messages[:index], updated, *messages[index + 1 :]]
+    return [SystemMessage(system_prompt), *messages]
