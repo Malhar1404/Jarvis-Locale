@@ -17,6 +17,11 @@ TIMESHEET_TAB_NAME = "Individual-Level"  # the only tab new entries are written 
 # (The plain qwen3:4b tag is the thinking-only variant. See docs/decisions/0002.)
 MODEL = os.getenv("JARVIS_MODEL", "qwen3:4b-instruct")
 
+# Screen Awareness uses a separate vision-language model.  Keeping it separate means the normal
+# chat/tool loop stays fast and does not accidentally receive screenshots.
+VISION_MODEL = os.getenv("JARVIS_VISION_MODEL", "qwen3-vl:4b")
+VISION_TIMEOUT_SECONDS = int(os.getenv("JARVIS_VISION_TIMEOUT_SECONDS", "90"))
+
 # Only for models that can think (e.g. JARVIS_MODEL=qwen3:4b-thinking):
 #   unset -> model default
 #   "true" -> thoughts go to AIMessage.additional_kwargs["reasoning_content"]

@@ -12,3 +12,14 @@ def make_llm(*, reasoning: bool | None = None) -> ChatOllama:
         temperature=0,
         reasoning=config.REASONING if reasoning is None else reasoning,
     )
+
+
+def make_vision_llm() -> ChatOllama:
+    """Build the local model used only for explicit, on-demand screen analysis."""
+    return ChatOllama(
+        model=config.VISION_MODEL,
+        temperature=0,
+        reasoning=False,
+        num_predict=400,
+        client_kwargs={"timeout": config.VISION_TIMEOUT_SECONDS},
+    )
