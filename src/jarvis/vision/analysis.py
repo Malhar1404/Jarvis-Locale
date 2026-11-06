@@ -8,8 +8,11 @@ LangGraph tool yet; that is Phase 4's responsibility.
 import base64
 from pathlib import Path
 
+import cv2
+import numpy as np
 from langchain_core.messages import HumanMessage
 
+from jarvis.config import VISION_MAX_IMAGE_PIXELS
 from jarvis.llm import make_vision_llm
 
 DEFAULT_SCREEN_QUESTION = "What application is visible, and what is happening on this screen?"
@@ -31,12 +34,11 @@ def analyze_screenshot(image_path: Path, question: str = DEFAULT_SCREEN_QUESTION
         raise ScreenAnalysisError("A screen-analysis question is required.")
 
     try:
-        encoded_image = base64.b64encode(image_path.read_bytes()).decode("ascii")
+        image_bytes, mime_type = _prepare_image(image_path.read_bytes(), image_path.suffix)
+        encoded_image = base64.b64encode(image_bytes).decode("ascii")
     except OSError as exc:
         raise ScreenAnalysisError(f"Could not read screenshot: {exc}") from exc
 
-    suffix = image_path.suffix.lower()
-    mime_type = "image/jpeg" if suffix in {".jpg", ".jpeg"} else "image/png"
     prompt = _make_prompt(question)
     message = HumanMessage(
         content=[
@@ -54,6 +56,33 @@ def analyze_screenshot(image_path: Path, question: str = DEFAULT_SCREEN_QUESTION
     if not isinstance(reply.content, str) or not reply.content.strip():
         raise ScreenAnalysisError("Vision model returned an empty response.")
     return reply.content.strip()
+
+
+def _prepare_image(image_bytes: bytes, suffix: str) -> tuple[bytes, str]:
+    """Downscale only oversized images before embedding them in the local model request."""
+    image = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        # Keeping this fallback makes failures attributable to the vision model, not preprocessing.
+        mime_type = "image/jpeg" if suffix.lower() in {".jpg", ".jpeg"} else "image/png"
+        return image_bytes, mime_type
+
+    height, width = image.shape[:2]
+    if width * height <= VISION_MAX_IMAGE_PIXELS:
+        mime_type = "image/jpeg" if suffix.lower() in {".jpg", ".jpeg"} else "image/png"
+        return image_bytes, mime_type
+
+    scale = (VISION_MAX_IMAGE_PIXELS / (width * height)) ** 0.5
+    target_width = max(1, int(width * scale))
+    target_height = max(1, int(height * scale))
+    resized = cv2.resize(
+        image,
+        (target_width, target_height),
+        interpolation=cv2.INTER_AREA,
+    )
+    ok, encoded = cv2.imencode(".png", resized)
+    if not ok:
+        raise ScreenAnalysisError("Could not resize screenshot for vision analysis.")
+    return encoded.tobytes(), "image/png"
 
 
 def _make_prompt(question: str) -> str:

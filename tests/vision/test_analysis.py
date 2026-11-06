@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import cv2
+import numpy as np
 import pytest
 
 from jarvis.vision import analysis
@@ -43,3 +45,16 @@ def test_analyze_screenshot_wraps_model_error(monkeypatch, tmp_path):
 
     with pytest.raises(analysis.ScreenAnalysisError, match="TimeoutError"):
         analysis.analyze_screenshot(screenshot)
+
+
+def test_prepare_image_downscales_an_oversized_screenshot(monkeypatch):
+    image = np.zeros((100, 200, 3), dtype=np.uint8)
+    ok, encoded = cv2.imencode(".png", image)
+    assert ok
+    monkeypatch.setattr(analysis, "VISION_MAX_IMAGE_PIXELS", 10_000)
+
+    resized_bytes, mime_type = analysis._prepare_image(encoded.tobytes(), ".png")
+    resized = cv2.imdecode(np.frombuffer(resized_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+    assert mime_type == "image/png"
+    assert resized.shape[0] * resized.shape[1] <= 10_000

@@ -29,8 +29,9 @@ SYSTEM_PROMPT = (
     "to change brightness or volume, call the matching set tool instead of explaining how the "
     "operating system works. "
     "For questions about the user's currently visible apps, UI, errors, or desktop, use "
-    "inspect_screen. It returns observations from a vision model: turn those into a helpful "
-    "human-readable answer, and do not present its JSON directly."
+    "inspect_screen. It always captures the whole desktop across every connected monitor. It "
+    "returns observations from a vision model: turn those into a helpful human-readable answer, "
+    "and do not present its JSON directly."
 )
 
 

@@ -75,6 +75,17 @@ def test_capture_full_desktop_uses_virtual_monitor(monkeypatch, tmp_path):
     assert result.path.exists()
 
 
+def test_capture_each_monitor_saves_one_image_per_monitor(monkeypatch, tmp_path):
+    _set_fake_capture(monkeypatch, tmp_path)
+
+    captures = screen_capture.capture_each_monitor(tmp_path)
+
+    assert len(captures) == 2
+    assert [capture.monitor_index for capture in captures] == [1, 2]
+    assert [(capture.left, capture.top) for capture in captures] == [(0, 0), (-1920, 0)]
+    assert all(capture.path.exists() for capture in captures)
+
+
 def test_cleanup_only_removes_expired_screen_capture_files(tmp_path):
     old_capture = tmp_path / "screen-old.png"
     old_capture.write_bytes(b"old")

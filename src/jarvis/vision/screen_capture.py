@@ -51,6 +51,7 @@ class ScreenCapture:
     top: int
     monitor_count: int
     window: WindowInfo | None = None
+    monitor_index: int | None = None
 
 
 def enable_per_monitor_dpi_awareness() -> None:
@@ -115,6 +116,37 @@ def capture_full_desktop(output_dir: Path | None = None) -> ScreenCapture:
     return _capture(mode="full_desktop", region=virtual_desktop, output_dir=output_dir, window=None)
 
 
+def capture_each_monitor(output_dir: Path | None = None) -> list[ScreenCapture]:
+    """Capture every physical monitor separately for reliable multi-monitor vision analysis."""
+    enable_per_monitor_dpi_awareness()
+    destination = output_dir or SCREEN_CAPTURE_DIR
+    destination.mkdir(parents=True, exist_ok=True)
+    cleanup_expired_captures(destination)
+
+    try:
+        with mss() as screen:
+            regions = [dict(monitor) for monitor in screen.monitors[1:]]
+            images = [screen.grab(region) for region in regions]
+    except Exception as exc:  # MSS exceptions vary by Windows/display-driver version.
+        raise ScreenCaptureError(f"Could not capture desktop monitors: {exc}") from exc
+
+    if not images:
+        raise ScreenCaptureError("No monitors are available to capture.")
+
+    monitor_count = len(images)
+    return [
+        _save_capture(
+            mode="full_desktop",
+            image=image,
+            region=region,
+            destination=destination,
+            monitor_count=monitor_count,
+            monitor_index=index,
+        )
+        for index, (region, image) in enumerate(zip(regions, images, strict=True), start=1)
+    ]
+
+
 def cleanup_expired_captures(
     output_dir: Path = SCREEN_CAPTURE_DIR, max_age_seconds: int = SCREEN_CAPTURE_MAX_AGE_SECONDS
 ) -> int:
@@ -153,7 +185,29 @@ def _capture(
     except Exception as exc:  # MSS exceptions vary by Windows/display-driver version.
         raise ScreenCaptureError(f"Could not capture {mode.replace('_', ' ')}: {exc}") from exc
 
-    path = destination / f"screen-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}.png"
+    return _save_capture(
+        mode=mode,
+        image=image,
+        region=region,
+        destination=destination,
+        monitor_count=monitor_count,
+        window=window,
+    )
+
+
+def _save_capture(
+    *,
+    mode: CaptureMode,
+    image,
+    region: dict[str, int],
+    destination: Path,
+    monitor_count: int,
+    window: WindowInfo | None = None,
+    monitor_index: int | None = None,
+) -> ScreenCapture:
+    """Save an MSS image and return only its safe metadata."""
+    suffix = f"monitor-{monitor_index}-" if monitor_index is not None else ""
+    path = destination / f"screen-{suffix}{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}.png"
     try:
         tools.to_png(image.rgb, image.size, output=str(path))
     except OSError as exc:
@@ -168,4 +222,5 @@ def _capture(
         top=region["top"],
         monitor_count=monitor_count,
         window=window,
+        monitor_index=monitor_index,
     )
