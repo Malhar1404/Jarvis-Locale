@@ -828,6 +828,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "mediapipe" },
+    { name = "mss" },
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "piper-tts" },
@@ -859,6 +860,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=1.2.18" },
     { name = "langgraph-checkpoint-sqlite", specifier = ">=3.1.3" },
     { name = "mediapipe", specifier = ">=1.2.2" },
+    { name = "mss", specifier = ">=10.2.0" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "opencv-python", specifier = ">=5.0.0.93" },
     { name = "piper-tts", specifier = ">=1.8.0" },
@@ -1249,6 +1251,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/86/67/717b257855c5550a3449907e110954506a306bf3e127717f7ab45450f0da/mediapipe-1.2.2-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:c0b641bf1515dd186036da711df597a514466c0ba97a138f35b698ecc0411a61", size = 42910755, upload-time = "2026-11-03T17:52:02.721Z" },
     { url = "https://files.pythonhosted.org/packages/6a/b0/6d1cb31a04f1726cdcd86cf0ea3eb1e9304e59de03bb083571dcab4ac227/mediapipe-1.2.2-py3-none-win_amd64.whl", hash = "sha256:71f44832fdd32b6270bc4379bcdd934287fb9eab974c3e74ef3fa76c7e79b54a", size = 25297951, upload-time = "2026-11-03T17:52:05.348Z" },
     { url = "https://files.pythonhosted.org/packages/70/38/6e937a1a825b0d8c75bc1078c82a6869217e274cce80b183172b0693f10c/mediapipe-1.2.2-py3-none-win_arm64.whl", hash = "sha256:78bd5622ebc062cfb2279408ece683c3ad9ede2a24bb92c21d1d520a6dc2e049", size = 22017674, upload-time = "2026-11-03T17:52:08.126Z" },
+]
+
+[[package]]
+name = "mss"
+version = "10.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/5d/eee782a6d674f562c946ae6a026f4c595ea2b7b031f290bf9fbf60da09b5/mss-10.2.0.tar.gz", hash = "sha256:ab271860775545e62f29d7b11f82f279ac1048f5bbdd26cfad84830208dbd393", size = 200317, upload-time = "2026-04-23T10:44:57.305Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/c3/313e14f245c79b4c05bd0f3a84a4813aa26fa10f8993aebd91d04c5fad3f/mss-10.2.0-py3-none-any.whl", hash = "sha256:e79f428899280e7e64e38365b5bfed683851ebea807eeaeadaf06eb8e0d67197", size = 67106, upload-time = "2026-04-23T10:44:56.266Z" },
 ]
 
 [[package]]

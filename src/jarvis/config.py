@@ -51,3 +51,9 @@ HAND_LANDMARKER_MODEL_PATH = DATA_DIR / "models" / "hand_landmarker.task"
 # only ever one process, too).
 CHECKPOINT_DB_PATH = DATA_DIR / "checkpoints.sqlite"
 THREAD_ID = "main"
+
+# On-demand screen captures are short-lived runtime data.  This location is deliberately outside
+# the workspace that Jarvis's file tools may read.  The retention period is enforced by the
+# capture module every time it writes a new image.
+SCREEN_CAPTURE_DIR = DATA_DIR / "screen_captures"
+SCREEN_CAPTURE_MAX_AGE_SECONDS = 60 * 60  # one hour
