@@ -44,3 +44,10 @@ HAND_LANDMARKER_MODEL_URL = (
     "hand_landmarker/float16/latest/hand_landmarker.task"
 )
 HAND_LANDMARKER_MODEL_PATH = DATA_DIR / "models" / "hand_landmarker.task"
+
+# Short-term memory: the conversation survives an app restart because it's keyed to the same
+# thread_id in a checkpoint file on disk, not a new random id in RAM. One constant id is enough -
+# Jarvis only ever has one ongoing conversation (see jarvis.ui.single_instance for why there's
+# only ever one process, too).
+CHECKPOINT_DB_PATH = DATA_DIR / "checkpoints.sqlite"
+THREAD_ID = "main"
