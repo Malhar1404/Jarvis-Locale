@@ -4,7 +4,9 @@ This is the Phase 1 round trip (ask -> run tool -> ask again) redrawn as a graph
 repeat as many times as a task needs instead of running exactly once.
 """
 
-from langchain_core.messages import BaseMessage
+from uuid import uuid4
+
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
@@ -12,6 +14,16 @@ from langgraph.graph import END, START, StateGraph
 from jarvis.agent.state import AgentState
 from jarvis.llm import make_llm
 from jarvis.safety.approval import run_tool_calls_with_approval
+
+_SCREEN_WORDS = ("screen", "desktop", "monitor", "monitors")
+
+
+def screen_question(message: BaseMessage) -> str | None:
+    """Recognize unambiguous screen-inspection requests without asking a small model to plan."""
+    if not isinstance(message, HumanMessage) or not isinstance(message.content, str):
+        return None
+    text = message.content.strip()
+    return text if any(word in text.lower() for word in _SCREEN_WORDS) else None
 
 
 def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None = None):
@@ -27,6 +39,19 @@ def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None 
         reply = llm.invoke(state["messages"])
         return {"messages": [reply]}
 
+    def route_screen_intent(state: AgentState) -> dict:
+        """Make direct screen/desktop requests reliable while leaving all other requests agentic."""
+        question = screen_question(state["messages"][-1])
+        if question is None or "inspect_screen" not in tools_by_name:
+            return {}
+        call = {
+            "name": "inspect_screen",
+            "args": {"question": question},
+            "id": f"screen-{uuid4().hex}",
+            "type": "tool_call",
+        }
+        return {"messages": [AIMessage(content="", tool_calls=[call])]}
+
     def run_tools(state: AgentState) -> dict:
         last: BaseMessage = state["messages"][-1]
         approved = set(state.get("approved_once", set()))
@@ -38,11 +63,19 @@ def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None 
         last: BaseMessage = state["messages"][-1]
         return "tools" if last.tool_calls else "end"
 
+    def after_screen_router(state: AgentState) -> str:
+        last: BaseMessage = state["messages"][-1]
+        return "tools" if last.tool_calls else "chatbot"
+
     builder = StateGraph(AgentState)
+    builder.add_node("screen_intent", route_screen_intent)
     builder.add_node("chatbot", chatbot)
     builder.add_node("tools", run_tools)
 
-    builder.add_edge(START, "chatbot")
+    builder.add_edge(START, "screen_intent")
+    builder.add_conditional_edges(
+        "screen_intent", after_screen_router, {"tools": "tools", "chatbot": "chatbot"}
+    )
     builder.add_conditional_edges("chatbot", has_tool_calls, {"tools": "tools", "end": END})
     builder.add_edge("tools", "chatbot")  # always loop back so the model sees the result
 
