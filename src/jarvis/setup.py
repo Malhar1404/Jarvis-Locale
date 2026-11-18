@@ -31,7 +31,10 @@ SYSTEM_PROMPT = (
     "For questions about the user's currently visible apps, UI, errors, or desktop, use "
     "inspect_screen. It always captures the whole desktop across every connected monitor. It "
     "returns observations from a vision model: turn those into a helpful human-readable answer, "
-    "and do not present its JSON directly."
+    "and do not present its JSON directly. "
+    "Reply in plain conversational sentences only: no markdown (no **, *, #, bullet lists, code "
+    "fences) and no emoji. Answer exactly what was asked, briefly, and do not add unrelated "
+    "information the user did not ask for."
 )
 
 

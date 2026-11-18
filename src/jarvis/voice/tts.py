@@ -15,6 +15,29 @@ from jarvis.voice.audio_level import AudioLevel
 
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
 
+# The model is told not to use markdown or emoji (see jarvis.setup.SYSTEM_PROMPT), but a 4B
+# model doesn't always obey - this is a backstop so Piper never reads "**" aloud as
+# "asterisk asterisk". Pairs are stripped first so bold doesn't leave stray single stars behind.
+_MARKDOWN = [
+    (re.compile(r"\*\*(.+?)\*\*"), r"\1"),
+    (re.compile(r"__(.+?)__"), r"\1"),
+    (re.compile(r"~~(.+?)~~"), r"\1"),
+    (re.compile(r"`(.+?)`"), r"\1"),
+    (re.compile(r"\*(.+?)\*"), r"\1"),
+    (re.compile(r"_(.+?)_"), r"\1"),
+    (re.compile(r"^\s{0,3}[-*+#>]+\s*", re.MULTILINE), ""),
+]
+_EMOJI = re.compile("[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff️]+")
+
+
+def strip_for_speech(text: str) -> str:
+    """Remove markdown formatting and emoji before it reaches Piper - see the comment above."""
+    for pattern, replacement in _MARKDOWN:
+        text = pattern.sub(replacement, text)
+    text = _EMOJI.sub("", text)
+    return re.sub(r" {2,}", " ", text).strip()
+
+
 _voice: PiperVoice | None = None
 
 
@@ -34,7 +57,8 @@ def speak(text: str, level: AudioLevel | None = None) -> None:
     value is updated in real time as each audio block plays - so a UI widget (the orb) polling
     that value can react to the speech as it's actually heard, not just when it started.
     """
-    if not text.strip():
+    text = strip_for_speech(text)
+    if not text:
         return
     chunks = list(_get_voice().synthesize(text))
     if not chunks:
