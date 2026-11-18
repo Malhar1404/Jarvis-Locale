@@ -58,19 +58,13 @@ class CursorOverlay(QWidget):
             p.end()
             return
         color = QColor(theme.TOOL if self.grabbing else theme.ACCENT)
-        glow = QColor(color)
-        glow.setAlpha(60)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(glow)
-        p.drawEllipse(self.pos_, 26, 26)
-        p.setPen(QPen(color, 2))
+        color.setAlpha(150)
+        p.setPen(QPen(color, 1))
         p.setBrush(color if self.pinching else Qt.BrushStyle.NoBrush)
-        radius = 9 if self.pinching else 15
-        p.drawEllipse(self.pos_, radius, radius)
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):  # small crosshair ticks
-            start = QPointF(self.pos_.x() + dx * 20, self.pos_.y() + dy * 20)
-            end = QPointF(self.pos_.x() + dx * 27, self.pos_.y() + dy * 27)
-            p.drawLine(start, end)
+        p.drawEllipse(self.pos_, 8, 8)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(color)
+        p.drawEllipse(self.pos_, 2.5 if not self.pinching else 4, 2.5 if not self.pinching else 4)
         p.end()
 
 
