@@ -26,6 +26,11 @@ def screen_question(message: BaseMessage) -> str | None:
     return text if any(word in text.lower() for word in _SCREEN_WORDS) else None
 
 
+def has_tool_calls(message: BaseMessage) -> bool:
+    """Human messages have no tool_calls attribute; only AI messages may request tools."""
+    return bool(getattr(message, "tool_calls", []))
+
+
 def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None = None):
     """Build and compile the agent graph for a given set of tools.
 
@@ -58,14 +63,14 @@ def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None 
         results, approved = run_tool_calls_with_approval(last.tool_calls, tools_by_name, approved)
         return {"messages": results, "approved_once": approved}
 
-    def has_tool_calls(state: AgentState) -> str:
+    def route_after_chatbot(state: AgentState) -> str:
         """The conditional edge: decide where to go after `chatbot` runs."""
         last: BaseMessage = state["messages"][-1]
-        return "tools" if last.tool_calls else "end"
+        return "tools" if has_tool_calls(last) else "end"
 
     def after_screen_router(state: AgentState) -> str:
         last: BaseMessage = state["messages"][-1]
-        return "tools" if last.tool_calls else "chatbot"
+        return "tools" if has_tool_calls(last) else "chatbot"
 
     builder = StateGraph(AgentState)
     builder.add_node("screen_intent", route_screen_intent)
@@ -76,7 +81,7 @@ def build_graph(tools: list[BaseTool], checkpointer: BaseCheckpointSaver | None 
     builder.add_conditional_edges(
         "screen_intent", after_screen_router, {"tools": "tools", "chatbot": "chatbot"}
     )
-    builder.add_conditional_edges("chatbot", has_tool_calls, {"tools": "tools", "end": END})
+    builder.add_conditional_edges("chatbot", route_after_chatbot, {"tools": "tools", "end": END})
     builder.add_edge("tools", "chatbot")  # always loop back so the model sees the result
 
     return builder.compile(checkpointer=checkpointer)
