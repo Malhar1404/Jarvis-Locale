@@ -99,6 +99,10 @@ class Agent:
                     return  # graph is paused - stop until resume() is called
                 else:  # a node just finished - grow history, emit its events
                     for node_name, change in payload.items():
+                        # LangGraph reports a node that returned {} (no change, e.g. screen_intent
+                        # on a non-screen message) as None here, not {} - checked directly.
+                        if not change:
+                            continue
                         for msg in change["messages"]:
                             self.history.append(msg)
                             yield from _events_for(node_name, msg)
