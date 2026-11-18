@@ -48,9 +48,7 @@ class Tray(QSystemTrayIcon):
         if self._window.isVisible():
             self._window.hide()
         else:
-            self._window.showMaximized()
-            self._window.raise_()
-            self._window.activateWindow()
+            self._window.bring_to_front()  # each window knows how it should be shown
         self.sync_toggle_text()
 
     def sync_toggle_text(self) -> None:

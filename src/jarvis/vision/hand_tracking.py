@@ -17,7 +17,14 @@ from jarvis.config import HAND_LANDMARKER_MODEL_PATH, HAND_LANDMARKER_MODEL_URL
 from jarvis.vision.hand_state import HandState
 
 WRIST = 0
+THUMB_TIP = 4
 INDEX_TIP = 8
+MIDDLE_MCP = 9  # middle finger's knuckle - wrist-to-here is our "palm size" ruler
+# Pinch = thumb tip close to index tip, measured in palm sizes so it works near or far from the
+# camera. Two thresholds (hysteresis): start below PINCH_ON, end only above PINCH_OFF. With a
+# single threshold, a gap hovering right at the line would flicker pinch/no-pinch every frame.
+PINCH_ON = 0.30
+PINCH_OFF = 0.45
 # (MCP, PIP, TIP) for each non-thumb finger - used to tell "extended" from "curled".
 FINGERS = {
     "index": (5, 6, 8),
@@ -52,6 +59,16 @@ def _classify_pose(landmarks) -> str:
     if extended == 0:
         return "fist"
     return "other"
+
+
+def pinch_ratio(landmarks) -> float:
+    """Thumb-tip-to-index-tip gap divided by palm size (about 0.1 touching, 0.8+ wide open)."""
+    palm = max(_distance(landmarks[WRIST], landmarks[MIDDLE_MCP]), 1e-6)
+    return _distance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]) / palm
+
+
+def is_pinching(ratio: float, was_pinching: bool) -> bool:
+    return ratio < (PINCH_OFF if was_pinching else PINCH_ON)
 
 
 class HandTracker:
@@ -96,6 +113,7 @@ class HandTracker:
             return  # no camera available - give up quietly rather than busy-looping forever
         start_time = time.monotonic()
         last_timestamp_ms = -1
+        pinching = False
         try:
             while self._running:
                 ok, frame = capture.read()
@@ -115,8 +133,12 @@ class HandTracker:
                 if result.hand_landmarks:
                     landmarks = result.hand_landmarks[0]
                     tip = landmarks[INDEX_TIP]
-                    self._state.set((tip.x, tip.y), _classify_pose(landmarks))
+                    thumb = landmarks[THUMB_TIP]
+                    pinching = is_pinching(pinch_ratio(landmarks), pinching)
+                    midpoint = ((tip.x + thumb.x) / 2, (tip.y + thumb.y) / 2)
+                    self._state.set((tip.x, tip.y), _classify_pose(landmarks), midpoint, pinching)
                 else:
+                    pinching = False
                     self._state.set(None, "none")
         finally:
             capture.release()

@@ -85,6 +85,25 @@ Done when: you can run an everyday task entirely by voice, including a spoken re
 barge-in and a wake word were concepts on the list but aren't required by this bar; deferred, along
 with a hands-free "Audio mode" that was built but didn't transcribe reliably enough to ship.)
 
+## Phase 7b: HUD redesign (floating panels, arc reactor, Mind panel, gestures)
+Mockup (confirmed by user 2026-11-18): https://claude.ai/artifact/R95HeuKL1AcSVCiy9xY866
+Decisions: one dark full-screen window (panels live inside it, not over the desktop); arc reactor
+fully replaces the dotted-sphere orb; its sound-wave ring is driven by FFT frequency bands of
+Jarvis's own TTS audio (not random, not the user's mic); a visible plan step ("Jarvis should be
+thinking"); Mind panel shows only the current request, small screenshot thumbnails; panel
+positions are NOT saved yet (later); interactive mode is toggled by a dock button or a voice command.
+Steps:
+1. Shell: full-screen dark window, grid background, top bar, bottom dock.
+2. `FloatingPanel`: drag by title bar, raise on click, show/hide from the dock.
+3. Move existing parts into panels: Comms (chat + mic), Tools, Approval pop-up; new Vitals (psutil).
+4. Arc reactor (`QPainter`) with idle / listening / thinking / speaking states from agent events.
+5. Sound-wave ring: FFT bands from TTS playback, shared like `AudioLevel`.
+6. Plan step in the graph + new `Plan` / `ScreenCaptured` events + the Mind panel.
+7. Interactive mode: camera on, virtual cursor follows the index finger, pinch = grab/drag a panel.
+8. Phase note and concept notes.
+Done when: you can talk to Jarvis, watch the reactor react to its voice, see its plan and screenshots
+in the Mind panel, and move panels with a pinch.
+
 ## Phase 8: Memory and context
 Concepts: short-term memory (checkpointer threads), long-term memory (LangGraph store), trimming and
 summarizing context (important for a small model), user profile and preferences.
@@ -129,6 +148,7 @@ tools, and sometimes think before answering.
 - [x] Phase 5
 - [x] Phase 6
 - [x] Phase 7
+- [ ] Phase 7b (HUD redesign)
 - [ ] Phase 8
 - [ ] Phase 9
 - [ ] Phase 10

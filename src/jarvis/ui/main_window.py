@@ -344,6 +344,12 @@ class MainWindow(QMainWindow):
     def _set_status(self, text: str) -> None:
         self.status_label.setText(text)
 
+    def bring_to_front(self) -> None:
+        """Used by the tray icon to show the window again."""
+        self.showMaximized()
+        self.raise_()
+        self.activateWindow()
+
     def quit_app(self) -> None:
         self._quitting = True
         self.close()

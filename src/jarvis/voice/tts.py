@@ -78,10 +78,9 @@ def _play_with_level(audio: np.ndarray, sample_rate: int, level: AudioLevel | No
         if len(chunk) < frames:
             outdata[len(chunk) :, 0] = 0.0
         if level is not None:
-            # RMS amplitude of this block, times a rough gain since speech RMS tends to sit low
-            # (~0.05-0.2) in a [-1, 1] signal - this just maps it into a more visible 0..1 range.
-            rms = float(np.sqrt(np.mean(chunk**2))) if len(chunk) else 0.0
-            level.set(rms * 4)
+            # Loudness (AudioLevel) or loudness + FFT bands (AudioSpectrum) of exactly the
+            # audio being played right now - the visual follows what you actually hear.
+            level.update(chunk, sample_rate)
         position += frames
         if position >= len(audio):
             finished.set()
@@ -90,7 +89,7 @@ def _play_with_level(audio: np.ndarray, sample_rate: int, level: AudioLevel | No
     with sd.OutputStream(samplerate=sample_rate, channels=1, dtype="float32", callback=callback):
         finished.wait()
     if level is not None:
-        level.set(0.0)
+        level.reset()
 
 
 class SentenceSpeaker:

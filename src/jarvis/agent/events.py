@@ -56,4 +56,36 @@ class ApprovalRequest(BaseModel):
     tier: str
 
 
-AgentEvent = Thinking | Token | ToolCall | ToolResult | Error | ApprovalRequest
+class ScreenShot(BaseModel):
+    path: str  # local PNG under .data/screen_captures - only UIs read it, never the text model
+    label: str  # e.g. "Monitor 1 · 2560×1440"
+
+
+class ScreenCaptured(BaseModel):
+    """inspect_screen took its screenshots. Sent mid-tool through LangGraph's *custom* stream
+    (see tools/screen.py), so a UI can show the images before the vision model has finished.
+    """
+
+    type: Literal["screen_captured"] = "screen_captured"
+    shots: list[ScreenShot]
+
+
+class VisionResult(BaseModel):
+    """The vision model finished describing one screenshot."""
+
+    type: Literal["vision_result"] = "vision_result"
+    label: str
+    text: str
+    seconds: float
+
+
+AgentEvent = (
+    Thinking
+    | Token
+    | ToolCall
+    | ToolResult
+    | Error
+    | ApprovalRequest
+    | ScreenCaptured
+    | VisionResult
+)

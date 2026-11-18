@@ -162,6 +162,8 @@ notes.
       `spun_z` instead of `tilted_z`, silently dropping the tilt transform from the depth sort.
 
 ## Next step
+0. **Phase 7b: HUD redesign** (inserted before Phase 8, user's choice 2026-11-18). UI mockup
+   confirmed; decisions and 8 steps are in PLAN.md "Phase 7b". Start with step 1 (the shell).
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-07-voice.md`, and lists questions; Claude answers them. Then commit the notes.
 2. Start Phase 8: memory and context (short-term via checkpointer threads, long-term via the

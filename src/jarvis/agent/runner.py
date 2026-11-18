@@ -9,15 +9,18 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
+from pydantic import ValidationError
 
 from jarvis.agent.events import (
     AgentEvent,
     ApprovalRequest,
     Error,
+    ScreenCaptured,
     Thinking,
     Token,
     ToolCall,
     ToolResult,
+    VisionResult,
 )
 from jarvis.agent.graph import build_graph
 from jarvis.config import CHECKPOINT_DB_PATH, THREAD_ID
@@ -82,10 +85,14 @@ class Agent:
         announced_nodes: set[str] = set()
         try:
             stream = self._graph.stream(
-                graph_input, config=self._config, stream_mode=["updates", "messages"]
+                graph_input, config=self._config, stream_mode=["updates", "messages", "custom"]
             )
             for mode, payload in stream:
-                if mode == "messages":
+                if mode == "custom":  # progress a tool reported mid-run via get_stream_writer()
+                    event = _custom_event(payload)
+                    if event is not None:
+                        yield event
+                elif mode == "messages":
                     chunk, metadata = payload
                     node = metadata.get("langgraph_node")
                     if node not in announced_nodes:
@@ -110,8 +117,28 @@ class Agent:
             yield Error(message=f"{type(exc).__name__}: {exc}")
 
 
+_CUSTOM_EVENTS = {"screen_captured": ScreenCaptured, "vision_result": VisionResult}
+
+
+def _custom_event(payload: object) -> AgentEvent | None:
+    """Turn a tool's plain-dict progress report into a typed event. Tools send dicts (not our
+    event classes) so jarvis.tools never has to import jarvis.agent. Unknown or malformed
+    reports are dropped - progress display must never break a turn.
+    """
+    if not isinstance(payload, dict):
+        return None
+    event_class = _CUSTOM_EVENTS.get(payload.get("type"))
+    if event_class is None:
+        return None
+    try:
+        return event_class.model_validate(payload)
+    except ValidationError:
+        return None
+
+
 def _events_for(node_name: str, msg: BaseMessage) -> Iterator[AgentEvent]:
-    if node_name == "chatbot" and isinstance(msg, AIMessage) and msg.tool_calls:
+    # screen_intent can also request a tool (a direct "look at my screen" skips the model).
+    if node_name in ("chatbot", "screen_intent") and isinstance(msg, AIMessage) and msg.tool_calls:
         for call in msg.tool_calls:
             yield ToolCall(name=call["name"], args=call["args"])
     elif node_name == "tools" and isinstance(msg, ToolMessage):
