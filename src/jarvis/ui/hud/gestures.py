@@ -1,5 +1,9 @@
-"""Interactive mode: a hand-tracked cursor on the HUD. Pinch-and-move drags a panel; a quick
-pinch (short, barely moving) "clicks" whatever button is under the cursor.
+"""Interactive mode: a hand-tracked cursor on the HUD.
+
+What a pinch does depends on what is under the cursor when your fingers START closing (the rule
+lives in vision/pinch.py, where it is tested without Qt):
+    a button or text field  -> a quick pinch clicks it
+    a panel (title bar or body) -> pinch, hold and move drags it; a quick pinch raises it
 
 There are no fake OS mouse events here. The controller asks the desk which widget is under the
 cursor (QWidget.childAt) and calls the same methods the mouse path uses - panel.begin_drag /
@@ -17,15 +21,23 @@ from jarvis.ui import theme
 from jarvis.ui.hud.panel import FloatingPanel
 from jarvis.ui.hud.style import TEXT_DIM
 from jarvis.vision.hand_state import HandState
-from jarvis.vision.hand_tracking import HandTracker
+from jarvis.vision.hand_tracking import HAND_LOSS_GRACE_SECONDS, HandTracker
+from jarvis.vision.pinch import GestureEvent, PinchInteraction, Point, Target
+from jarvis.vision.pointer import OneEuroFilter2D, map_to_screen
 
-FRAME_MS = 16
-# Only the middle of the camera image maps to the whole screen, so you can reach the screen's
-# edges without your hand leaving the camera's view.
-ACTIVE_LOW, ACTIVE_HIGH = 0.15, 0.85
-SMOOTHING = 0.35  # 0..1: how far the cursor moves toward the hand each frame (lower = calmer)
-DRAG_START_PX = 12  # a pinch must move this far before it becomes a drag
-CLICK_MAX_SECONDS = 0.45  # a pinch released sooner than this, without dragging, is a click
+FRAME_MS = 16  # the UI timer; the camera gives new samples less often (see _tick)
+
+# Sensitivity: only this middle part of the camera image covers the whole screen. 0.25..0.75 is a
+# 2x gain: moving your hand half the image width crosses the screen. A smaller region = more
+# sensitive (but amplifies shake). Tune with examples/phase7b_tune_cursor.py.
+ACTIVE_LOW, ACTIVE_HIGH = 0.25, 0.75
+
+# One Euro filter, "steady" preset (see jarvis/vision/pointer.py for what each knob does).
+FILTER_MIN_CUTOFF = 1.0  # Hz: lower = steadier when still
+# Higher = less lag when you flick. 0.02 was too high on real recordings: landmark noise by itself
+# looks like fast motion, which opened the filter and left only 6-16% of the shake removed.
+FILTER_BETA = 0.004
+FILTER_D_CUTOFF = 1.0
 
 
 class CursorOverlay(QWidget):
@@ -75,14 +87,17 @@ class GestureController(QObject):
         self._overlay = overlay
         self._hand = HandState()
         self._tracker = HandTracker(self._hand)
+        self._filter = OneEuroFilter2D(FILTER_MIN_CUTOFF, FILTER_BETA, FILTER_D_CUTOFF)
+        self._interaction = PinchInteraction(self._classify)
+        self._last_seq = -1  # which camera sample the filter has already seen
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self.enabled = False
         self._pos: QPointF | None = None
+        self._tracking_lost_at: float | None = None
         self._pinching = False
-        self._pinch_started = 0.0
-        self._pinch_origin = QPointF()
         self._grabbed: FloatingPanel | None = None
+        self._drag_origin: QPoint | None = None  # where the grabbed panel was, to restore on cancel
         self._dragging = False
 
     def set_enabled(self, on: bool) -> None:
@@ -97,88 +112,107 @@ class GestureController(QObject):
             self._timer.start(FRAME_MS)
         else:
             self._timer.stop()
-            self._release()
+            self._cancel_gesture()
             self._tracker.stop()
             self._overlay.hide()
             self._pos = None
+            self._tracking_lost_at = None
+            self._filter.reset()
 
     def _tick(self) -> None:
         point = self._hand.pinch_point or self._hand.pointer
         if point is None:  # hand left the camera view
-            self._release()
-            self._pos = None
-            self._overlay.set_cursor(None, pinching=False, grabbing=False)
+            now = time.monotonic()
+            if self._tracking_lost_at is None:
+                self._tracking_lost_at = now
+            if now - self._tracking_lost_at >= HAND_LOSS_GRACE_SECONDS:
+                self._cancel_gesture()
+                self._pos = None
+                self._filter.reset()  # the cursor reappears at the hand, not sliding in
+                self._overlay.set_cursor(None, pinching=False, grabbing=False)
+            else:  # a brief dropout: hold the cursor (and any pinch) where it is
+                self._overlay.set_cursor(
+                    self._pos, pinching=self._pinching, grabbing=self._dragging
+                )
             return
-        target = self._to_desk(point)
-        if self._pos is None:
-            self._pos = target
-        else:
-            self._pos += (target - self._pos) * SMOOTHING
+        self._tracking_lost_at = None
+        # This timer ticks ~60x/s but the camera delivers ~30 samples/s. Handle each camera sample
+        # exactly once, at the time it was captured - not once per tick - or the amount of
+        # smoothing (and the pinch debounce, which counts frames) would depend on how the two
+        # clocks happen to line up.
+        if self._hand.seq != self._last_seq or self._pos is None:
+            self._last_seq = self._hand.seq
+            x, y = map_to_screen(
+                point, self._desk.width(), self._desk.height(), ACTIVE_LOW, ACTIVE_HIGH
+            )
+            stamp = self._hand.timestamp
+            t = time.monotonic() if stamp is None else stamp
+            self._pos = QPointF(*self._filter(x, y, t))
+            value = self._hand.pinch_value
+            events = self._interaction.update(
+                t, (self._pos.x(), self._pos.y()), 1.0 if value is None else value
+            )
+            for event in events:
+                self._apply(event)
+        self._overlay.set_cursor(
+            self._pos, pinching=self._interaction.pinched, grabbing=self._dragging
+        )
 
-        pinching = self._hand.pinching
-        if pinching and not self._pinching:
-            self._press()
-        elif pinching:
-            self._hold()
-        elif self._pinching:
-            self._release(click=True)
-        self._overlay.set_cursor(self._pos, pinching=pinching, grabbing=self._dragging)
+    # -- what is under the cursor (asked once per pinch, see vision/pinch.py) --------------
+    def _classify(self, pos: Point) -> Target:
+        widget = self._desk.childAt(QPoint(int(pos[0]), int(pos[1])))
+        while widget is not None and widget is not self._desk:
+            if isinstance(widget, QAbstractButton):
+                return "button", widget
+            if isinstance(widget, QLineEdit):
+                return "field", widget
+            if isinstance(widget, FloatingPanel):
+                return "panel", widget
+            widget = widget.parentWidget()
+        return "none", None
 
-    def _to_desk(self, point: tuple[float, float]) -> QPointF:
-        def scale(value: float) -> float:
-            return min(1.0, max(0.0, (value - ACTIVE_LOW) / (ACTIVE_HIGH - ACTIVE_LOW)))
-
-        return QPointF(scale(point[0]) * self._desk.width(), scale(point[1]) * self._desk.height())
-
-    def _press(self) -> None:
-        self._pinching = True
-        self._pinch_started = time.monotonic()
-        self._pinch_origin = QPointF(self._pos)
-        self._grabbed = self._panel_at(self._pos)
-        self._dragging = False
-
-    def _hold(self) -> None:
-        if self._grabbed is None:
-            return
-        moved = (self._pos - self._pinch_origin).manhattanLength()
-        if not self._dragging and moved > DRAG_START_PX:
-            self._dragging = True
-            self._grabbed.begin_drag(self._pinch_origin.toPoint())
-        if self._dragging:
-            self._grabbed.drag_to(self._pos.toPoint())
+    # -- turning the pure gesture events into widget actions -------------------------------
+    def _apply(self, event: GestureEvent) -> None:
+        kind = event.kind
+        widget = event.target[1] if event.target is not None else None
+        point = QPoint(round(event.pos[0]), round(event.pos[1]))
+        if kind == "press":
+            self._pinching = True
+        elif kind == "drag_start" and isinstance(widget, FloatingPanel):
+            self._grabbed, self._dragging = widget, True
+            self._drag_origin = widget.pos()
+            # point is where the pinch closed: the panel then moves by how far the cursor
+            # travels from there, so the cursor's drift while closing never shifts the panel.
+            widget.begin_drag(point)
+        elif kind == "drag" and self._grabbed is not None:
+            self._grabbed.drag_to(point)
             self._overlay.raise_()
+        elif kind == "drop" and self._grabbed is not None:
+            self._grabbed.drag_to(point)
+            self._grabbed.end_drag()
+        elif kind == "click":
+            if isinstance(widget, QAbstractButton) and widget.isEnabled():
+                widget.click()
+            elif isinstance(widget, QLineEdit):
+                widget.setFocus()
+        elif kind == "tap" and isinstance(widget, FloatingPanel):
+            widget.bring_to_front()
+        elif kind == "release":
+            self._pinching = False
+            self._dragging = False
+            self._grabbed = None
+            self._drag_origin = None
 
-    def _release(self, *, click: bool = False) -> None:
-        if not self._pinching:
-            return
+    def _cancel_gesture(self) -> None:
+        """Tracking was lost mid-pinch: put a half-dragged panel back instead of dropping it
+        somewhere random, and never click.
+        """
+        self._interaction.cancel()
         if self._dragging and self._grabbed is not None:
             self._grabbed.end_drag()
-        elif click and time.monotonic() - self._pinch_started < CLICK_MAX_SECONDS:
-            self._click(self._pos)
+            if self._drag_origin is not None:
+                self._grabbed.move_clamped(self._drag_origin)
         self._pinching = False
         self._dragging = False
         self._grabbed = None
-
-    def _widget_at(self, pos: QPointF) -> QWidget | None:
-        return self._desk.childAt(QPoint(int(pos.x()), int(pos.y())))
-
-    def _panel_at(self, pos: QPointF) -> FloatingPanel | None:
-        widget = self._widget_at(pos)
-        while widget is not None and not isinstance(widget, FloatingPanel):
-            widget = widget.parentWidget()
-        return widget
-
-    def _click(self, pos: QPointF) -> None:
-        widget = self._widget_at(pos)
-        while widget is not None and widget is not self._desk:
-            if isinstance(widget, QAbstractButton):
-                if widget.isEnabled():
-                    widget.click()
-                return
-            if isinstance(widget, QLineEdit):
-                widget.setFocus()
-                return
-            if isinstance(widget, FloatingPanel):
-                widget.bring_to_front()
-                return
-            widget = widget.parentWidget()
+        self._drag_origin = None

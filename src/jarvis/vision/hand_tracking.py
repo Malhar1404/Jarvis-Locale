@@ -7,14 +7,18 @@ import math
 import threading
 import time
 import urllib.request
+from collections.abc import Callable
 
 import cv2
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python import vision as mp_vision
 
 from jarvis.config import HAND_LANDMARKER_MODEL_PATH, HAND_LANDMARKER_MODEL_URL
+from jarvis.vision.hand_recording import HandFrame
 from jarvis.vision.hand_state import HandState
+from jarvis.vision.pinch import PINCH_OFF, PINCH_ON
 
 WRIST = 0
 THUMB_TIP = 4
@@ -23,8 +27,7 @@ MIDDLE_MCP = 9  # middle finger's knuckle - wrist-to-here is our "palm size" rul
 # Pinch = thumb tip close to index tip, measured in palm sizes so it works near or far from the
 # camera. Two thresholds (hysteresis): start below PINCH_ON, end only above PINCH_OFF. With a
 # single threshold, a gap hovering right at the line would flicker pinch/no-pinch every frame.
-PINCH_ON = 0.30
-PINCH_OFF = 0.45
+HAND_LOSS_GRACE_SECONDS = 0.15
 # (MCP, PIP, TIP) for each non-thumb finger - used to tell "extended" from "curled".
 FINGERS = {
     "index": (5, 6, 8),
@@ -71,13 +74,36 @@ def is_pinching(ratio: float, was_pinching: bool) -> bool:
     return ratio < (PINCH_OFF if was_pinching else PINCH_ON)
 
 
+def _to_array(landmarks) -> np.ndarray:
+    return np.array([[p.x, p.y, p.z] for p in landmarks], dtype=np.float32)
+
+
+def _make_frame(t: float, result) -> HandFrame:
+    """Copy one detection result into a plain HandFrame (numbers only, no MediaPipe objects)."""
+    if not result.hand_landmarks:
+        return HandFrame(t, None, None)
+    world = result.hand_world_landmarks[0] if result.hand_world_landmarks else None
+    return HandFrame(
+        t, _to_array(result.hand_landmarks[0]), None if world is None else _to_array(world)
+    )
+
+
 class HandTracker:
     """Runs entirely on its own thread - start()/stop() never touch the GUI thread, matching
     jarvis.voice.hotkey.Recorder's pattern for the microphone.
+
+    on_frame, if given, is called on the tracker's thread with every processed frame (a HandFrame,
+    numbers only) - used to record sessions for tuning. It must be quick and thread-safe.
     """
 
-    def __init__(self, state: HandState, camera_index: int = 0) -> None:
+    def __init__(
+        self,
+        state: HandState,
+        camera_index: int = 0,
+        on_frame: Callable[[HandFrame], None] | None = None,
+    ) -> None:
         self._state = state
+        self._on_frame = on_frame
         self._camera_index = camera_index
         self._thread: threading.Thread | None = None
         self._running = False
@@ -113,33 +139,47 @@ class HandTracker:
             return  # no camera available - give up quietly rather than busy-looping forever
         start_time = time.monotonic()
         last_timestamp_ms = -1
+        missing_since: float | None = None
         pinching = False
         try:
             while self._running:
                 ok, frame = capture.read()
                 if not ok:
                     continue
+                captured_at = time.monotonic()  # as close as we get to when the frame was taken
                 frame = cv2.flip(frame, 1)  # mirror - feels natural, like a selfie camera
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 # detect_for_video demands a *strictly* increasing timestamp - two frames
                 # processed within the same millisecond would otherwise crash it.
-                timestamp_ms = max(
-                    int((time.monotonic() - start_time) * 1000), last_timestamp_ms + 1
-                )
+                timestamp_ms = max(int((captured_at - start_time) * 1000), last_timestamp_ms + 1)
                 last_timestamp_ms = timestamp_ms
                 result = landmarker.detect_for_video(mp_image, timestamp_ms)
+                if self._on_frame is not None:
+                    self._on_frame(_make_frame(captured_at, result))
 
                 if result.hand_landmarks:
+                    missing_since = None
                     landmarks = result.hand_landmarks[0]
                     tip = landmarks[INDEX_TIP]
                     thumb = landmarks[THUMB_TIP]
-                    pinching = is_pinching(pinch_ratio(landmarks), pinching)
+                    ratio = pinch_ratio(landmarks)
+                    pinching = is_pinching(ratio, pinching)
                     midpoint = ((tip.x + thumb.x) / 2, (tip.y + thumb.y) / 2)
-                    self._state.set((tip.x, tip.y), _classify_pose(landmarks), midpoint, pinching)
+                    self._state.set(
+                        (tip.x, tip.y),
+                        _classify_pose(landmarks),
+                        midpoint,
+                        pinching,
+                        captured_at,
+                        pinch_value=ratio,
+                    )
                 else:
-                    pinching = False
-                    self._state.set(None, "none")
+                    if missing_since is None:
+                        missing_since = captured_at
+                    elif captured_at - missing_since >= HAND_LOSS_GRACE_SECONDS:
+                        pinching = False
+                    self._state.set(None, "none", pinching=pinching, timestamp=captured_at)
         finally:
             capture.release()
             landmarker.close()

@@ -3,7 +3,7 @@
 > Resume point. Update at the end of every session.
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-18
 **Current phase:** Phase 7 (voice) code is done. User is also separately editing the Phase 2-6
 notes.
 
@@ -160,10 +160,37 @@ notes.
       only runs while the orb is expanded fullscreen, with a visible "CAMERA ACTIVE" label.
       Caught and fixed a real bug via `ruff` (`F841`) while writing this: `pz` was reading
       `spun_z` instead of `tilted_z`, silently dropping the tilt transform from the depth sort.
+- [x] Gesture cursor stability: ignore tiny landmark jitter, use stronger smoothing for small
+      movements and faster catch-up for larger ones, and briefly hold the cursor through missed
+      frames. If tracking stays lost during a pinch, cancel it safely (including restoring a
+      dragged panel) instead of accidentally clicking.
+
+- [x] Phase 7b, HUD built in one go (`src/jarvis/ui/hud/`): frameless full-screen desk, draggable
+      `FloatingPanel`s (Comms, Mind, Vitals, Tools, Approval pop-up), arc reactor with an FFT
+      sound-wave ring (`voice/audio_spectrum.py`), Mind panel fed by new `ScreenCaptured` /
+      `VisionResult` events (sent through LangGraph's custom stream from `tools/screen.py`), dock,
+      and local "interactive mode on/off" commands. Run: `uv run python -m jarvis.ui` (old window:
+      `--classic`). Preview without Ollama: `examples/phase7b_hud_preview.py`. Not yet tried by the
+      user on a real screen with the real agent. Still open from the plan: a visible Plan step
+      (agent-side), panel position saving (deliberately later).
+- [x] Phase 7b, cursor robustness, part 1: `vision/pointer.py` (One Euro filter + screen mapping,
+      2x gain via `ACTIVE_LOW/HIGH` in `ui/hud/gestures.py`), camera timestamps + sample counter in
+      `HandState`, filter runs once per camera sample. `vision/hand_recording.py` +
+      `examples/phase7b_record_hand.py` (record numbers only to `.data/hand_recordings/`) and
+      `examples/phase7b_tune_cursor.py` (replay + shake/lag report). Tests added.
+
+- [x] Phase 7b, cursor robustness, part 2: recorded takes showed the camera's own jitter is small
+      (~3 px) but `FILTER_BETA` 0.02 let noise open the filter (now 0.004), and that the cursor
+      drifts 30-50 px while the fingers close - so taps turned into drags. New `vision/pinch.py`
+      (`PinchDetector` debounce + hysteresis + closing/opening onset, `PinchInteraction`: click vs
+      drag by what is under the cursor, position history for the aim/drop point), wired into
+      `ui/hud/gestures.py`. Tests: `tests/vision/test_pinch.py`, widget tests in
+      `tests/ui/test_gestures.py` (offscreen via `tests/ui/conftest.py`).
 
 ## Next step
-0. **Phase 7b: HUD redesign** (inserted before Phase 8, user's choice 2026-11-18). UI mockup
-   confirmed; decisions and 8 steps are in PLAN.md "Phase 7b". Start with step 1 (the shell).
+0. **Phase 7b cursor robustness** (PLAN.md Phase 7b step 7). Done: a, b, c, d. User tries it live
+   (`uv run python -m jarvis.ui`, Interactive button) and reports. Then e: hover highlight, shrinking
+   pinch ring, hit-target slop, raw-vs-filtered debug view; maybe tune `ACTIVE_*`/`FILTER_*` again.
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-07-voice.md`, and lists questions; Claude answers them. Then commit the notes.
 2. Start Phase 8: memory and context (short-term via checkpointer threads, long-term via the

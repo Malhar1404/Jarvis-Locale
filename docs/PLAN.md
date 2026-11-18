@@ -100,6 +100,24 @@ Steps:
 5. Sound-wave ring: FFT bands from TTS playback, shared like `AudioLevel`.
 6. Plan step in the graph + new `Plan` / `ScreenCaptured` events + the Mind panel.
 7. Interactive mode: camera on, virtual cursor follows the index finger, pinch = grab/drag a panel.
+   Robustness pass (decided 2026-11-18; problems seen: cursor shake, missed clicks, drag drops/sticks;
+   feel wanted: steady when still, but small finger moves travel far):
+   a. `examples/` recorder saves ~10 s of hand landmark numbers (no video) to `.data/`, replayed in tests.
+   b. One Euro filter (heavy smoothing when slow/still, light when flicking) applied in screen
+      pixels using real camera timestamps, plus a higher fixed gain (smaller camera region covers
+      the screen); replaces the deadzone/EMA in `ui/hud/gestures.py`. Mouse-style acceleration was
+      rejected: with absolute pointing it makes the cursor drift away from where the hand points.
+   c. DONE: pinch = 2D thumb-index gap / palm size, hysteresis + 2 consecutive frames to switch
+      (`vision/pinch.py`). Not MediaPipe *world* landmarks for now: on the first recordings their
+      thumb-index distance read 26 mm on a firm pinch (3D depth is noisy). Revisit with more data.
+   d. DONE: click vs drag is decided by WHAT IS UNDER THE CURSOR when the fingers start closing
+      (button/field = click only, panel = drag only, quick tap on a panel = raise), not by
+      movement - the cursor drifts 30-50 px by itself while the fingers close. Click/grab target =
+      position from just before the fingers closed, drop = just before they opened (position
+      history); drag distance measured from where the pinch closed; tracking-loss grace, then
+      cancel and restore the panel. Replayed on real takes: 4/4 quick taps clicked, 3/3 drags, no
+      stray clicks. Still open: pinch held > 0.8 s is not a click (`CLICK_MAX_SECONDS`).
+   e. Feedback: hover highlight, shrinking pinch ring, small hit-target slop, raw-vs-filtered debug view.
 8. Phase note and concept notes.
 Done when: you can talk to Jarvis, watch the reactor react to its voice, see its plan and screenshots
 in the Mind panel, and move panels with a pinch.

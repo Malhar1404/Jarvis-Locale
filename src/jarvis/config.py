@@ -52,6 +52,8 @@ HAND_LANDMARKER_MODEL_URL = (
     "hand_landmarker/float16/latest/hand_landmarker.task"
 )
 HAND_LANDMARKER_MODEL_PATH = DATA_DIR / "models" / "hand_landmarker.task"
+# Recorded hand sessions (landmark numbers only - never video or images), used to tune the cursor.
+HAND_RECORDINGS_DIR = DATA_DIR / "hand_recordings"
 
 # Short-term memory: the conversation survives an app restart because it's keyed to the same
 # thread_id in a checkpoint file on disk, not a new random id in RAM. Screen Awareness is a new
