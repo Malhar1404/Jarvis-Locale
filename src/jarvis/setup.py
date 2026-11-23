@@ -17,6 +17,7 @@ from jarvis.tools.files import (
     search_files,
     write_file,
 )
+from jarvis.tools.memory import list_remembered_facts, recall_fact, remember_fact
 from jarvis.tools.screen import inspect_screen
 from jarvis.tools.timesheet import add_timesheet_entry, list_timesheet_tabs, read_timesheet_tab
 from jarvis.tools.volume import get_volume, set_volume
@@ -34,7 +35,13 @@ SYSTEM_PROMPT = (
     "and do not present its JSON directly. "
     "Reply in plain conversational sentences only: no markdown (no **, *, #, bullet lists, code "
     "fences) and no emoji. Answer exactly what was asked, briefly, and do not add unrelated "
-    "information the user did not ask for."
+    "information the user did not ask for. "
+    "Use remember_fact on your own whenever the user shares or corrects something about "
+    "themselves worth keeping for future conversations (their name, a usual folder, a "
+    "preference) - including when they correct something you got wrong, even if they do not "
+    "explicitly say 'remember'. Overwrite the old value rather than keeping both. Do not use it "
+    "for one-off task details. Use recall_fact or list_remembered_facts to check what you "
+    "already know instead of asking the user to repeat it."
 )
 
 
@@ -61,6 +68,9 @@ def build_tools() -> list[BaseTool]:
         list_timesheet_tabs,
         read_timesheet_tab,
         add_timesheet_entry,
+        remember_fact,
+        recall_fact,
+        list_remembered_facts,
     ]
 
 
