@@ -33,7 +33,9 @@ REASONING: bool | None = None if _reasoning is None else _reasoning.lower() == "
 
 # Speech-to-text (faster-whisper, CPU). ".en" models are English-only and a bit faster/more
 # accurate than the multilingual ones of the same size - fine since Jarvis only needs English.
-STT_MODEL = os.getenv("JARVIS_STT_MODEL", "base.en")
+# base.en mis-transcribed normal fast/casual speech (dropped or mis-heard whole phrases); small.en
+# fixed it in a direct A/B test (same mic, same sentence) at a still-fine ~1.6s per clip on CPU.
+STT_MODEL = os.getenv("JARVIS_STT_MODEL", "small.en")
 STT_DEVICE = "cpu"
 STT_COMPUTE_TYPE = "int8"  # faster-whisper's recommended quantization for CPU
 SAMPLE_RATE = 16_000  # Hz - what Whisper expects on the way in
