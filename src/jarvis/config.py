@@ -33,9 +33,7 @@ REASONING: bool | None = None if _reasoning is None else _reasoning.lower() == "
 
 # Speech-to-text (faster-whisper, CPU). ".en" models are English-only and a bit faster/more
 # accurate than the multilingual ones of the same size - fine since Jarvis only needs English.
-# base.en mis-transcribed normal fast/casual speech (dropped or mis-heard whole phrases); small.en
-# fixed it in a direct A/B test (same mic, same sentence) at a still-fine ~1.6s per clip on CPU.
-STT_MODEL = os.getenv("JARVIS_STT_MODEL", "small.en")
+STT_MODEL = os.getenv("JARVIS_STT_MODEL", "base.en")
 STT_DEVICE = "cpu"
 STT_COMPUTE_TYPE = "int8"  # faster-whisper's recommended quantization for CPU
 SAMPLE_RATE = 16_000  # Hz - what Whisper expects on the way in
@@ -63,6 +61,11 @@ HAND_RECORDINGS_DIR = DATA_DIR / "hand_recordings"
 # incorrectly said Jarvis had no PC tools. The original "main" checkpoint remains intact.
 CHECKPOINT_DB_PATH = DATA_DIR / "checkpoints.sqlite"
 THREAD_ID = "screen-aware"
+
+# Long-term memory: small facts about the user (name, usual folders, preferences) that should
+# survive even a brand new conversation thread - a separate file from the checkpoint above, since
+# these two kinds of memory are deliberately independent (see jarvis/memory/store.py).
+MEMORY_DB_PATH = DATA_DIR / "memory.sqlite"
 
 # On-demand screen captures are short-lived runtime data.  This location is deliberately outside
 # the workspace that Jarvis's file tools may read.  The retention period is enforced by the
