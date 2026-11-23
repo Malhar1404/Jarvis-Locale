@@ -187,6 +187,11 @@ notes.
       `ui/hud/gestures.py`. Tests: `tests/vision/test_pinch.py`, widget tests in
       `tests/ui/test_gestures.py` (offscreen via `tests/ui/conftest.py`).
 
+- [x] Phase 7b notes drafted (revision format, with self-check questions): `docs/phases/phase-07b-hud.md`
+      plus concepts `hud-desk-and-floating-panels`, `fft-audio-spectrum`, `langgraph-custom-stream`,
+      `one-euro-filter`, `pinch-click-vs-drag`, `testing-with-recorded-data`. User edits them in
+      their own words (the "my own words" and "questions" sections are left blank on purpose).
+
 ## Next step
 0. **Phase 7b cursor robustness** (PLAN.md Phase 7b step 7). Done: a, b, c, d. User tries it live
    (`uv run python -m jarvis.ui`, Interactive button) and reports. Then e: hover highlight, shrinking
