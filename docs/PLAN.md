@@ -125,8 +125,13 @@ in the Mind panel, and move panels with a pinch.
 ## Phase 8: Memory and context
 Concepts: short-term memory (checkpointer threads), long-term memory (LangGraph store), trimming and
 summarizing context (important for a small model), user profile and preferences.
-Build: remembers your name, folders, and preferences across restarts; conversations resume.
-Done when: "open my usual project folder" works after a restart.
+Built: short-term memory via the checkpointer (done earlier); long-term memory via a sqlite-backed
+LangGraph `Store` (`remember_fact`/`recall_fact`/`list_remembered_facts`), with the system prompt
+now nudging the model to remember things on its own, not just when asked; an explicit context
+window (`num_ctx`) and a trim budget (`trim_messages`) so an old conversation can't silently
+overflow the model; `/compact` to summarize old messages into a kept summary instead of just
+dropping them, with live context-usage shown in the HUD.
+Done when: "open my usual project folder" works after a restart. (Built, not yet tried live.)
 
 ## Phase 9: Polish and stretch goals
 - Startup: autostart with Windows, tray-only mode, a greeting when the app starts.
@@ -166,7 +171,7 @@ tools, and sometimes think before answering.
 - [x] Phase 5
 - [x] Phase 6
 - [x] Phase 7
-- [ ] Phase 7b (HUD redesign)
+- [x] Phase 7b (HUD redesign)
 - [ ] Phase 8
 - [ ] Phase 9
 - [ ] Phase 10

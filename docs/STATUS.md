@@ -3,9 +3,10 @@
 > Resume point. Update at the end of every session.
 > To resume after a lost chat: tell Claude "read CLAUDE.md and docs/STATUS.md and continue".
 
-**Last updated:** 2026-11-18
-**Current phase:** Phase 7 (voice) code is done. User is also separately editing the Phase 2-6
-notes.
+**Last updated:** 2026-11-23
+**Current phase:** Phase 7b (HUD redesign) is done. Phase 8 (memory and context) step 1 is done -
+long-term memory, context-window trimming, and `/compact` are all built; the phase's own "done
+when" scenario (a remembered folder survives a restart) has not been tried live yet.
 
 ## Done
 - [x] Phase 0: Foundations. See [[phase-00-foundations]].
@@ -192,19 +193,55 @@ notes.
       `one-euro-filter`, `pinch-click-vs-drag`, `testing-with-recorded-data`. User edits them in
       their own words (the "my own words" and "questions" sections are left blank on purpose).
 
+- [x] Phase 8, step 1: long-term memory. `src/jarvis/memory/store.py` wraps a `SqliteStore`
+      (LangGraph's own long-term-memory interface, separate sqlite file from the checkpoint) -
+      `remember_fact` (ASK_ONCE, same reasoning as `write_file`) / `recall_fact` /
+      `list_remembered_facts` (AUTO) in `src/jarvis/tools/memory.py`. `isolation_level=None` is
+      required on the connection - checked directly after `SqliteStore` raised a confusing
+      "transaction within a transaction" error without it. `SYSTEM_PROMPT` now tells the model to
+      call `remember_fact` on its own whenever the user shares or corrects something worth
+      keeping, not only when explicitly asked to "remember" - a first step toward picking things
+      up during normal conversation.
+- [x] Phase 8, step 2: bounded the context window instead of sending it unbounded. `chatbot()` was
+      sending the *entire* checkpointed history to the model every turn, and `make_llm()` never
+      set Ollama's `num_ctx` explicitly. Added `CONTEXT_WINDOW_TOKENS` (now passed as `num_ctx`)
+      and `HISTORY_TRIM_TOKENS`; `graph.py`'s `trim_history()` (`trim_messages`) bounds what's
+      sent per turn - a no-op for ordinary conversations, always keeps the system prompt, never
+      starts the trimmed window on a lone tool result. The full history still lives in the
+      checkpoint; only the model's *input* is bounded.
+- [x] Phase 8, step 3: `/compact` - summarizes the oldest part of the conversation with one LLM
+      call and replaces those messages in the checkpoint with a short summary (`RemoveMessage` -
+      checked directly that `add_messages` handles a mixed remove+append update correctly),
+      instead of letting `trim_history()` silently drop them from what the model ever sees again.
+      Context usage (tokens stored / per-turn budget) is now shown live in the top bar and the
+      Mind panel's footer. Typing "/" in the chat box pops up matching slash commands via
+      `QCompleter`, themed to match the HUD (its popup is its own top-level window, so the HUD
+      stylesheet needed applying to it directly - same reason `QToolTip` already needed its own
+      rule).
+- [x] Investigated a real STT complaint (mishearing fast/casual speech, and specifically one
+      short name consistently as a different common word) with a sequence of direct A/B tests:
+      mic access path (MME vs WASAPI - identical), model size (`base.en` -> `small.en` ->
+      `distil-medium.en` - `small.en` won, bigger didn't help), VAD on/off, gain normalization,
+      and clipping - all ruled out. `small.en` *did* measurably fix general fast/casual speech
+      (kept as the default briefly), but didn't fix the one-word case; a `hotwords` + remembered-
+      name mitigation also didn't resolve it for the user's test, and per explicit request all of
+      it was reverted back to `base.en` - see Open questions below.
+
 ## Next step
-0. **Phase 7b cursor robustness** (PLAN.md Phase 7b step 7). Done: a, b, c, d. User tries it live
-   (`uv run python -m jarvis.ui`, Interactive button) and reports. Then e: hover highlight, shrinking
-   pinch ring, hit-target slop, raw-vs-filtered debug view; maybe tune `ACTIVE_*`/`FILTER_*` again.
 1. User reads and rewrites the "my own words" sections of `phase-02-agent-loop.md` through
    `phase-07-voice.md`, and lists questions; Claude answers them. Then commit the notes.
-2. Start Phase 8: memory and context (short-term via checkpointer threads, long-term via the
-   LangGraph store, trimming/summarizing for the small model, a remembered user profile). Barge-in
-   (interrupting Jarvis mid-sentence) and a wake word are explicitly deferred Phase 7 follow-ups,
-   pickable up whenever wanted.
+2. Try Phase 8's own "done when" scenario live: tell Jarvis a usual folder once, restart the app,
+   then ask it to open that folder - the first real end-to-end test of long-term memory.
+3. Optional, not blocking: Phase 7b cursor-feel polish (PLAN.md Phase 7b step 7e) - hover
+   highlight, shrinking pinch ring, hit-target slop, a raw-vs-filtered debug view.
+4. Start Phase 9 (polish/stretch) or Phase 10 (how LLMs work) - whichever the user wants next.
 
 ## Open questions
-- None yet.
+- STT sometimes mishears short/unusual words (e.g. a name) even when the rest of a sentence comes
+  through fine - reproduced consistently across model sizes, so it looks like a real limit of
+  local CPU-sized models on this input rather than a fixable bug. Mic path, model size, VAD,
+  gain, and clipping were all ruled out as the cause (see the Done bullet above). Typing such
+  words instead of speaking them is the reliable workaround for now.
 
 ## Environment notes
 - Python 3.12 via uv (system Python is 3.14, avoided on purpose).
