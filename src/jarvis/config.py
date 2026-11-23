@@ -17,6 +17,16 @@ TIMESHEET_TAB_NAME = "Individual-Level"  # the only tab new entries are written 
 # (The plain qwen3:4b tag is the thinking-only variant. See docs/decisions/0002.)
 MODEL = os.getenv("JARVIS_MODEL", "qwen3:4b-instruct")
 
+# Ollama's own context window - explicit rather than whatever default it would otherwise pick, so
+# the trim budget below is sized against a number we actually know. 8192 is comfortable for a 4B
+# model's KV cache on a 4GB VRAM GPU.
+CONTEXT_WINDOW_TOKENS = 8192
+# How much of the conversation (approximate tokens) gets sent to the model each turn. The
+# checkpoint keeps every message forever (see CHECKPOINT_DB_PATH below), but the model's context
+# window does not - an old conversation would eventually overflow it without this. Comfortably
+# under CONTEXT_WINDOW_TOKENS, leaving room for the system prompt, tool schemas, and the reply.
+HISTORY_TRIM_TOKENS = 6000
+
 # Screen Awareness uses a separate vision-language model.  Keeping it separate means the normal
 # chat/tool loop stays fast and does not accidentally receive screenshots.
 VISION_MODEL = os.getenv("JARVIS_VISION_MODEL", "qwen3-vl:4b-instruct")

@@ -11,6 +11,7 @@ def make_llm(*, reasoning: bool | None = None) -> ChatOllama:
         model=config.MODEL,
         temperature=0,
         reasoning=config.REASONING if reasoning is None else reasoning,
+        num_ctx=config.CONTEXT_WINDOW_TOKENS,
     )
 
 
