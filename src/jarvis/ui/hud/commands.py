@@ -26,3 +26,15 @@ def interactive_mode_command(text: str) -> bool | None:
     if _ON.search(text):
         return True
     return None
+
+
+def compact_command(text: str) -> bool:
+    """A literal slash command, not natural language like the mode switch above - typing it is
+    unambiguous on purpose, so there's no risk of a normal sentence triggering it by accident.
+    """
+    return text.strip().lower() == "/compact"
+
+
+# Every literal slash command, for the input box's autocomplete popup (see comms.py) - one place
+# to add a new entry when a new command is built, instead of two.
+SLASH_COMMANDS = ["/compact"]

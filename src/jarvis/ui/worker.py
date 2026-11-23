@@ -19,6 +19,8 @@ class AgentWorker(QObject):
     event = Signal(object)  # emits one AgentEvent at a time
     turn_done = Signal()  # the agent is idle again, waiting for the next message
     transcribed = Signal(str)  # a recorded clip has been turned into text
+    compacted = Signal(str)  # result of a /compact request
+    context_usage = Signal(int, int)  # (tokens stored, per-turn budget) - see Agent.context_usage
 
     def __init__(self, agent: Agent, level: AudioLevel | None = None) -> None:
         super().__init__()
@@ -44,6 +46,12 @@ class AgentWorker(QObject):
         """
         self.transcribed.emit(transcribe(audio))
 
+    @Slot()
+    def compact(self) -> None:
+        """Runs on the worker thread - compact() makes its own LLM call, same as a normal turn."""
+        self.compacted.emit(self._agent.compact())
+        self.context_usage.emit(*self._agent.context_usage())
+
     def _drive(self, events: Iterator[AgentEvent]) -> None:
         speaker = SentenceSpeaker(self._level) if self._speak_current_turn else None
         paused = False
@@ -57,4 +65,7 @@ class AgentWorker(QObject):
         if not paused:
             if speaker is not None:
                 speaker.flush()
+            # Emitted before turn_done so the Mind panel's footer (set in turn_done's handler)
+            # already has this turn's fresh numbers, not the previous turn's.
+            self.context_usage.emit(*self._agent.context_usage())
             self.turn_done.emit()

@@ -6,6 +6,7 @@ the Mind panel instead, so the chat stays readable.
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCompleter,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -14,6 +15,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from jarvis.ui.hud.commands import SLASH_COMMANDS
+from jarvis.ui.hud.style import STYLESHEET
 
 
 def make_scroll_column() -> tuple[QScrollArea, QVBoxLayout]:
@@ -70,6 +74,17 @@ class CommsView(QWidget):
 
         self.input_line = QLineEdit(objectName="commsInput")
         self.input_line.setPlaceholderText("Type, or hold MIC / F9 to talk")
+        # A command only matches once what you've typed so far is itself a prefix of it (e.g.
+        # "/", "/co"), so this never pops up for an ordinary message - only ever at the start of
+        # typing a literal slash command. Selecting one just fills the box; Enter still sends it.
+        completer = QCompleter(SLASH_COMMANDS, self.input_line)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        # The popup is its own top-level window - the HUD's stylesheet never reaches it unless
+        # applied here directly (see the comment on QListView#commsCompleterPopup in style.py).
+        completer.popup().setObjectName("commsCompleterPopup")
+        completer.popup().setStyleSheet(STYLESHEET)
+        self.input_line.setCompleter(completer)
         self.mic_button = QPushButton("MIC", objectName="commsMic")
         self.mic_button.setToolTip("Hold to talk (fills the box so you can check it first)")
         self.send_button = QPushButton("SEND", objectName="commsSend")

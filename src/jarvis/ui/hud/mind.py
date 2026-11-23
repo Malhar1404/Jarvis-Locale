@@ -127,6 +127,8 @@ class MindView(QWidget):
         self._model_calls = 0
         self._tool_calls = 0
         self._started = 0.0
+        self._context_used = 0
+        self._context_budget = 0
         self._clock = QTimer(self)
         self._clock.timeout.connect(self._tick_live)
         self._clock.start(100)
@@ -275,12 +277,17 @@ class MindView(QWidget):
         step.add_text(message[:300], "mindMono")
         self._add(step)
 
+    def set_context_usage(self, used: int, budget: int) -> None:
+        self._context_used = used
+        self._context_budget = budget
+
     def done(self) -> None:
         self._end_live()
         total = time.monotonic() - self._started
         calls = f"{self._model_calls} model call{'s' if self._model_calls != 1 else ''}"
         tools = f"{self._tool_calls} tool{'s' if self._tool_calls != 1 else ''}"
-        self._footer.setText(f"{calls} · {tools} · total {total:.1f}s")
+        ctx = f" · {self._context_used}/{self._context_budget} tok" if self._context_budget else ""
+        self._footer.setText(f"{calls} · {tools} · total {total:.1f}s{ctx}")
 
 
 def _short_result(content: str) -> str:

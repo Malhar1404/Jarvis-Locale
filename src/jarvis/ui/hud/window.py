@@ -47,7 +47,7 @@ from jarvis.agent.events import (
 from jarvis.agent.runner import Agent
 from jarvis.config import MODEL, PUSH_TO_TALK_KEY, VISION_MODEL
 from jarvis.ui import theme
-from jarvis.ui.hud.commands import interactive_mode_command
+from jarvis.ui.hud.commands import compact_command, interactive_mode_command
 from jarvis.ui.hud.comms import CommsView, ReplyBubble
 from jarvis.ui.hud.gestures import CursorOverlay, GestureController
 from jarvis.ui.hud.mind import MindView
@@ -85,6 +85,7 @@ class TopBar(QWidget):
 
         dot = QLabel("●", objectName="hudOnlineDot")
         status = QLabel(f"ONLINE · {MODEL} · {VISION_MODEL} · local", objectName="hudStatus")
+        self.context_label = QLabel("", objectName="hudStatus")
         self.camera_label = QLabel("● CAMERA ACTIVE", objectName="hudCamera")
         self.camera_label.hide()
         self.date_label = QLabel(objectName="hudDate")
@@ -101,6 +102,8 @@ class TopBar(QWidget):
         row.addSpacing(8)
         row.addWidget(dot)
         row.addWidget(status)
+        row.addSpacing(12)
+        row.addWidget(self.context_label)
         row.addSpacing(12)
         row.addWidget(self.camera_label)
         row.addStretch()
@@ -120,6 +123,10 @@ class TopBar(QWidget):
         now = QDateTime.currentDateTime()
         self.date_label.setText(now.toString("ddd dd MMM").upper())
         self.clock_label.setText(now.toString("HH:mm"))
+
+    def set_context_usage(self, used: int, budget: int) -> None:
+        pct = min(100, 100 * used // budget) if budget else 0
+        self.context_label.setText(f"{used}/{budget} TOK ({pct}%)")
 
 
 class Dock(QFrame):
@@ -167,6 +174,7 @@ class HudWindow(QWidget):
     send_requested = Signal(str, bool)  # text, speak_the_reply
     resume_requested = Signal(str)
     transcribe_requested = Signal(object)  # a recorded numpy clip
+    compact_requested = Signal()  # /compact typed in the chat box
     hotkey_pressed = Signal()  # pynput calls these from its own thread, not the GUI thread
     hotkey_released = Signal()
 
@@ -203,6 +211,11 @@ class HudWindow(QWidget):
 
         self.comms = CommsView()
         self.mind = MindView(MODEL, VISION_MODEL, tool_tiers)
+        # The agent object itself is still safe to read here - the worker thread it will live on
+        # hasn't started yet (see self._thread.start() below) - so a resumed conversation shows
+        # its real stored usage immediately, not just after the next turn.
+        self.top_bar.set_context_usage(*agent.context_usage())
+        self.mind.set_context_usage(*agent.context_usage())
         self._vitals_sampler = VitalsSampler()
         self.vitals = VitalsView(self._vitals_sampler)
         self.tools_view = ToolsView(tool_tiers)
@@ -287,9 +300,12 @@ class HudWindow(QWidget):
         self._worker.event.connect(self._on_event)
         self._worker.turn_done.connect(self._on_turn_done)
         self._worker.transcribed.connect(self._on_transcribed)
+        self._worker.compacted.connect(self._on_compacted)
+        self._worker.context_usage.connect(self._on_context_usage)
         self.send_requested.connect(self._worker.send)
         self.resume_requested.connect(self._worker.resume)
         self.transcribe_requested.connect(self._worker.transcribe)
+        self.compact_requested.connect(self._worker.compact)
         self._thread.start()
         self._vitals_sampler.start()
 
@@ -419,6 +435,13 @@ class HudWindow(QWidget):
             self.reactor.set_state("idle")
             return
 
+        if compact_command(text):  # makes its own LLM call, so it needs the worker thread
+            self._set_busy(True)
+            self.reactor.set_state("thinking")
+            self.comms.add_note("Compacting older messages…")
+            self.compact_requested.emit()
+            return
+
         self._reply = None
         self.mind.begin_request(text, voice=voice)
         short = text if len(text) <= 70 else text[:67] + "…"
@@ -506,6 +529,15 @@ class HudWindow(QWidget):
         self.mind.done()
         self._set_busy(False)
         self.reactor.set_state("idle")
+
+    def _on_compacted(self, message: str) -> None:
+        self.comms.add_note(message)
+        self._set_busy(False)
+        self.reactor.set_state("idle")
+
+    def _on_context_usage(self, used: int, budget: int) -> None:
+        self.top_bar.set_context_usage(used, budget)
+        self.mind.set_context_usage(used, budget)
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy

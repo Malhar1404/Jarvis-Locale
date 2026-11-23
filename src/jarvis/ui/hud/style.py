@@ -67,6 +67,19 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: none
 QToolTip {{
     color: {theme.TEXT}; background-color: {theme.PANEL}; border: 1px solid {theme.BORDER};
 }}
+/* A QCompleter's popup is its own top-level window, not a child of #hud - it never picks up
+   this stylesheet unless applied to it directly (same reason QToolTip needs its own rule above),
+   so comms.py sets this stylesheet on completer.popup() explicitly. */
+QListView#commsCompleterPopup {{
+    background-color: {theme.PANEL}; color: {theme.TEXT};
+    border: 1px solid {rgba(theme.ACCENT, 90)}; border-radius: 8px;
+    font-family: {MONO}; font-size: 12px; padding: 4px;
+    outline: none;
+}}
+QListView#commsCompleterPopup::item {{ padding: 6px 10px; border-radius: 4px; }}
+QListView#commsCompleterPopup::item:selected {{
+    background-color: {rgba(theme.ACCENT, 70)}; color: {theme.TEXT};
+}}
 
 QLabel#hudTitle {{
     color: {theme.ACCENT}; font-family: "{TITLE_FONT}"; font-size: 22px; font-weight: 700;

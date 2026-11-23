@@ -1,6 +1,6 @@
 import pytest
 
-from jarvis.ui.hud.commands import interactive_mode_command
+from jarvis.ui.hud.commands import compact_command, interactive_mode_command
 
 
 @pytest.mark.parametrize(
@@ -17,3 +17,17 @@ from jarvis.ui.hud.commands import interactive_mode_command
 )
 def test_interactive_mode_command(text, expected):
     assert interactive_mode_command(text) is expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("/compact", True),
+        ("/COMPACT", True),
+        ("  /compact  ", True),
+        ("please compact the conversation", False),
+        ("/compactness", False),
+    ],
+)
+def test_compact_command(text, expected):
+    assert compact_command(text) is expected

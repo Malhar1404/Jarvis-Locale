@@ -5,7 +5,16 @@
 import sqlite3
 from collections.abc import Iterator
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    RemoveMessage,
+    SystemMessage,
+    ToolMessage,
+    trim_messages,
+)
+from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
@@ -23,7 +32,12 @@ from jarvis.agent.events import (
     VisionResult,
 )
 from jarvis.agent.graph import build_graph
-from jarvis.config import CHECKPOINT_DB_PATH, THREAD_ID
+from jarvis.config import CHECKPOINT_DB_PATH, HISTORY_TRIM_TOKENS, THREAD_ID
+from jarvis.llm import make_llm
+
+# Below this many old messages, compacting isn't worth an extra LLM call - trim_history() in
+# graph.py already keeps ordinary turns within budget on its own.
+_COMPACT_MIN_OLD_MESSAGES = 6
 
 
 class Agent:
@@ -80,6 +94,45 @@ class Agent:
     def resume(self, decision: str) -> Iterator[AgentEvent]:
         """Continue a graph paused on an ApprovalRequest. decision is "yes" or "no"."""
         yield from self._drive(Command(resume=decision))
+
+    def context_usage(self) -> tuple[int, int]:
+        """(approximate tokens in the full stored history, the per-turn send budget). The first
+        number can exceed the second - that just means trim_history() is already quietly
+        dropping old messages each turn; compact() turns that into a kept summary instead.
+        """
+        return count_tokens_approximately(self.history), HISTORY_TRIM_TOKENS
+
+    def compact(self) -> str:
+        """Summarize the oldest part of the conversation with one LLM call, replacing those
+        messages in the checkpoint with a short summary - keeps their gist instead of letting
+        trim_history() silently drop them from what the model ever sees again.
+        """
+        old = _old_messages(self.history)
+        if len(old) < _COMPACT_MIN_OLD_MESSAGES:
+            return "Nothing to compact yet."
+
+        transcript = "\n".join(line for m in old if (line := _transcript_line(m)))
+        summary = (
+            make_llm()
+            .invoke(
+                [
+                    SystemMessage(
+                        "Summarize the following conversation in 3-6 plain sentences. Preserve "
+                        "names, facts, and anything the user asked to be remembered. No markdown."
+                    ),
+                    HumanMessage(transcript),
+                ]
+            )
+            .content
+        )
+
+        summary_message = SystemMessage(
+            f"Summary of {len(old)} earlier messages (background context): {summary}"
+        )
+        removals = [RemoveMessage(id=message.id) for message in old]
+        self._graph.update_state(self._config, {"messages": [*removals, summary_message]})
+        self.history = list(self._graph.get_state(self._config).values["messages"])
+        return f"Compacted {len(old)} older messages into a summary."
 
     def _drive(self, graph_input: dict | Command) -> Iterator[AgentEvent]:
         announced_nodes: set[str] = set()
@@ -144,6 +197,33 @@ def _events_for(node_name: str, msg: BaseMessage) -> Iterator[AgentEvent]:
     elif node_name == "tools" and isinstance(msg, ToolMessage):
         status = "error" if msg.status == "error" else "ok"
         yield ToolResult(name=msg.name or "unknown", content=str(msg.content), status=status)
+
+
+def _old_messages(history: list[BaseMessage]) -> list[BaseMessage]:
+    """Which messages are old enough to compact away - the same recent window trim_history()
+    (see graph.py) would already keep, so compacting never discards something still in budget.
+    """
+    kept = trim_messages(
+        history,
+        max_tokens=HISTORY_TRIM_TOKENS // 2,
+        token_counter="approximate",
+        strategy="last",
+        include_system=True,
+        start_on="human",
+    )
+    kept_ids = {message.id for message in kept}
+    return [message for message in history if message.id not in kept_ids]
+
+
+def _transcript_line(message: BaseMessage) -> str:
+    """One readable line for the summarization prompt - tool calls/results add noise there, not
+    substance, so only the human/assistant turns with actual text are included.
+    """
+    if isinstance(message, HumanMessage) and isinstance(message.content, str):
+        return f"User: {message.content}"
+    if isinstance(message, AIMessage) and isinstance(message.content, str) and message.content:
+        return f"Jarvis: {message.content}"
+    return ""
 
 
 def _with_current_system_prompt(
